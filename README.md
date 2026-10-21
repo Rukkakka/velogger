@@ -6,7 +6,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Rukkakka/velogger"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
+  <a href="https://pypi.org/project/velogger/"><img src="https://img.shields.io/pypi/v/velogger" alt="PyPI"></a>
+  <a href="https://pypi.org/project/velogger/"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
   <a href="https://github.com/Rukkakka/velogger/actions/workflows/ci.yml"><img src="https://github.com/Rukkakka/velogger/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/Rukkakka/velogger/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
   <a href="https://github.com/Rukkakka/velogger/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/status-pre--alpha-orange" alt="status: pre-alpha"></a>
@@ -27,7 +28,7 @@
 </p>
 
 > 비공식 API 를 쓴다. 스펙이 예고 없이 바뀔 수 있고, 자동수집·자동작성은 velog 약관과 상충할 소지가 있으니 개인 용도로만 쓴다.
-> **pre-alpha** — 조회·로그인·쓰기 명령은 갖췄지만 아직 PyPI 에 올리지 않았고, 첫 릴리스 전이라 명령과 출력 형식이 바뀔 수 있다.
+> **pre-alpha** — 조회·로그인·쓰기 명령은 갖췄지만 아직 초기 버전(0.x)이라 명령과 출력 형식이 바뀔 수 있다. 바뀐 점은 [변경 기록](https://github.com/Rukkakka/velogger/blob/main/CHANGELOG.md)에 적는다.
 
 Claude, ChatGPT 같은 LLM 에이전트가 velog 를 다룰 때 셸로 부르는 도구다. 무엇을 할지는 사용자와 LLM 이 정하고, velog 의 조회 절차·요청 제한·로그인을 지키며 결과를 공통 JSON 으로 돌려주는 일은 CLI 가 맡는다. 이름은 velog 사용자를 부르는 말 "벨로거"에서 따왔고, velog 가 만든 공식 도구가 아니다. 같은 구조의 형제 프로젝트로 부동산 [jibsa](https://github.com/Rukkakka/jibsa) 와 항공권 [baenggipyo](https://github.com/Rukkakka/baenggipyo) 가 있다.
 
@@ -55,7 +56,7 @@ Claude, ChatGPT 같은 LLM 에이전트가 velog 를 다룰 때 셸로 부르는
 ## 빠른 시작
 
 ```bash
-uv tool install git+https://github.com/Rukkakka/velogger     # 아직 PyPI 에 없어 GitHub 에서 받는다
+uv tool install velogger        # 또는 pipx install velogger
 velogger trending --limit 1
 ```
 
@@ -94,20 +95,20 @@ velogger trending --limit 1
 
 ## 설치
 
-아직 PyPI 에 올리지 않았다 (pre-alpha). GitHub 에서 설치하거나, 저장소를 받아 개발 설치한다. Python 3.11 이상이 필요하다 (uv 로 설치하면 없어도 된다).
+Python 3.11 이상이 필요하고 (uv 로 설치하면 없어도 된다), macOS·Linux·Windows 에서 쓸 수 있다. 셋 중 하나만 하면 된다.
 
-```bash
-# GitHub 에서 (uv 권장)
-uv tool install git+https://github.com/Rukkakka/velogger
-# 또는 pipx install git+https://github.com/Rukkakka/velogger
-```
+| 방법 | 설치 | 업데이트 |
+| --- | --- | --- |
+| **uv** (권장) | `uv tool install velogger` | `uv tool upgrade velogger` |
+| pipx | `pipx install velogger` | `pipx upgrade velogger` |
+| pip + 가상환경 | `python3 -m venv ~/.venvs/velogger && ~/.venvs/velogger/bin/pip install velogger` | `~/.venvs/velogger/bin/pip install -U velogger` |
 
 ```bash
 velogger --help      # 명령 목록이 나오면 성공
 velogger limits      # 요청 제한 상태 JSON. 네트워크 요청은 보내지 않는다
 ```
 
-업데이트는 `uv tool upgrade velogger` (pipx 는 `pipx upgrade velogger`), 삭제는 `uv tool uninstall velogger` 다. `velogger: command not found` 가 나오면 새 터미널을 열거나 `uv tool update-shell` 로 `~/.local/bin` 을 PATH 에 넣는다.
+설치하지 않고 한 번 써 보려면 `uvx velogger --help` 로 부른다. 아직 릴리스하지 않은 최신 수정은 `uv tool install git+https://github.com/Rukkakka/velogger` 로 받는다. 삭제는 `uv tool uninstall velogger` (pipx 는 `pipx uninstall velogger`) 다. `velogger: command not found` 가 나오면 새 터미널을 열거나 `uv tool update-shell` 로 `~/.local/bin` 을 PATH 에 넣는다. 버전마다 바뀐 점은 [변경 기록](https://github.com/Rukkakka/velogger/blob/main/CHANGELOG.md)에 있다.
 
 ```bash
 # 저장소를 받아 개발 설치 (코드를 고칠 때)
