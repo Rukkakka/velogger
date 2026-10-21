@@ -121,5 +121,7 @@ Windows 는 `.venv/bin/pytest` 대신 `.venv\Scripts\pytest` 로 부른다.
 ## README 데모
 
 `scripts/demo/demo.tape` 가 [VHS](https://github.com/charmbracelet/vhs) 녹화 대본이다
-(`vhs scripts/demo/demo.tape` → `docs/demo/demo.gif`). **조회만 녹화한다** — 로그인·쓰기는 실제 글이 올라가고
-화면에 계정 정보가 남는다. 녹화 전에 `velogger logout` 으로 세션이 없는 상태인지 확인한다.
+(`vhs scripts/demo/demo.tape` → `docs/demo/demo.gif`, README 빠른 시작에 넣는다). **조회만 녹화한다** — 로그인·쓰기는 실제 글이
+올라가고 화면에 계정 정보가 남는다. 대본이 화면에 안 보이는 구간(`Hide`)에서 빈 임시 폴더를 `VELOGGER_CONFIG_DIR` 로 두어 녹화하는
+사람의 세션을 쓰지 않는다 (예전 안내대로 `velogger logout` 하면 실제 세션이 지워졌다). 트렌딩 결과는 날마다 달라, 다시 녹화하면
+README 의 GIF 설명(녹화 날짜)도 맞춘다.

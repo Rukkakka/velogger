@@ -88,6 +88,10 @@ velogger trending --limit 1
 
 이어서 `velogger post teo ai-native-fe` 로 그 글의 본문을 마크다운으로 받는다. 로그인이 필요한 명령은 [로그인하기](https://github.com/Rukkakka/velogger#로그인하기)를 먼저 한다.
 
+![로그인 없이 velogger guide 로 에이전트용 가이드를 읽고, trending 으로 트렌딩 글 셋을, post 로 그중 한 글의 제목·태그·본문 앞부분을 jq 로 골라 보는 터미널 데모](https://raw.githubusercontent.com/Rukkakka/velogger/main/docs/demo/demo.gif)
+
+로그인 없이 `guide`·`trending`·`post` 를 차례로 불러 본 실제 화면이다 (2026-10-21 녹화, 결과는 `jq` 로 일부 칸만 골랐다).
+
 ## 설치
 
 아직 PyPI 에 올리지 않았다 (pre-alpha). GitHub 에서 설치하거나, 저장소를 받아 개발 설치한다. Python 3.11 이상이 필요하다 (uv 로 설치하면 없어도 된다).
