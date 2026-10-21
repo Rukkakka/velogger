@@ -92,8 +92,10 @@ STEPS: tuple[Step, ...] = (
     Step('팔로워 velopert', ('followers',), ('velopert', '--limit', '3'), 'users'),
     Step('팔로잉 velopert', ('followings',), ('velopert', '--limit', '3'), 'users'),
     Step('글 본문', ('post',), ('--', '{username}', '{url_slug}'), 'body'),
-    # 트렌딩 글에 댓글이 없을 수 있어 목록이 아니라 post_id 로 본다 (v2 경로가 응답하는지)
-    Step('댓글', ('comments',), ('{post_id}',), 'post_id'),
+    # 트렌딩 글에 댓글이 없을 수 있어 목록이 아니라 post_id 로 본다 (v2 경로가 응답하는지). --replies 로 대댓글 조회
+    # (`ReloadReplies`, 대댓글의 대댓글까지 중첩)도 함께 본다. 대댓글이 있는 댓글이 없으면 그날은 그 요청을 보내지 않는다
+    # (2026-10-21 확인: 트렌딩 10개 중 6개, 감시가 쓰는 첫 글에도 대댓글이 있었다)
+    Step('댓글·대댓글', ('comments',), ('{post_id}', '--replies'), 'post_id'),
     Step('시리즈', ('series',), ('--', 'velopert', '{series_slug}'), 'posts'),
 )
 
