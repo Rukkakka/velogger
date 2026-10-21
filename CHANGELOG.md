@@ -5,6 +5,12 @@ velogger 의 버전별 변경 기록. 사용자(에이전트 포함)에게 보�
 
 ## Unreleased
 
+## 0.1.1 — 2026-10-21
+
+### 수정
+
+- README·PyPI 의 개발 상태 표시가 pre-alpha 로 남아 있던 것을 alpha(`Development Status :: 3 - Alpha`)로 고침 (#9)
+
 ## 0.1.0 — 2026-10-21
 
 ### 추가
