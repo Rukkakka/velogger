@@ -1,0 +1,120 @@
+[build-system]
+requires = ['hatchling']
+build-backend = 'hatchling.build'
+
+[project]
+name = 'velogger'
+version = '0.1.0'
+description = '벨로그(velog.io)를 다루는 LLM 친화 비공식 CLI'
+readme = 'README.md'
+license = 'MIT'
+requires-python = '>=3.11'
+keywords = [
+    'velogger',
+    'velog',
+    'blog',
+    'cli',
+    'llm',
+    'ai-agent',
+    '벨로그',
+]
+classifiers = [
+    'Development Status :: 2 - Pre-Alpha',
+    'Environment :: Console',
+    'Intended Audience :: End Users/Desktop',
+    'Natural Language :: Korean',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python :: 3 :: Only',
+    'Topic :: Utilities',
+]
+dependencies = [
+    'pydantic>=2.13,<3',
+    'httpx>=0.28,<0.29',
+    'tenacity>=9.1,<10',
+    # cli 가 typer 에 내장된 click(typer._click)을 쓰는데 0.26 부터 들어 있다
+    'typer>=0.26,<1',
+]
+
+[project.optional-dependencies]
+dev = [
+    'pytest>=8',
+    'ruff>=0.17,<0.18',
+    'mypy>=2.4,<3',
+]
+
+[project.urls]
+Homepage = 'https://github.com/Rukkakka/velogger'
+Documentation = 'https://github.com/Rukkakka/velogger/tree/main/docs'
+Changelog = 'https://github.com/Rukkakka/velogger/blob/main/CHANGELOG.md'
+Issues = 'https://github.com/Rukkakka/velogger/issues'
+
+[project.scripts]
+velogger = 'velogger.cli.app:main'
+
+# sdist 에는 빌드·테스트에 쓰는 파일만. README 그림(데모 GIF·로고)과 그 제작 도구는 PyPI 페이지가 GitHub 주소로 보여 준다.
+# scripts/monitor 는 tests/test_monitor.py 가 읽어 남긴다
+[tool.hatch.build.targets.sdist]
+exclude = ['docs/demo', 'docs/logo-light.svg', 'docs/logo-dark.svg', 'scripts/demo', 'scripts/logo']
+
+[tool.hatch.build.targets.wheel]
+packages = ['src/velogger']
+
+# `velogger guide` 가 출력하는 LLM 가이드와 사용 문서 (`velogger guide velogger`). 문서는 docs/ 에만 두고 설치본에는
+# 패키지 안으로 복사한다 (편집 가능 설치에는 복사되지 않아 cli/app.py 가 저장소의 docs/ 를 읽는다).
+[tool.hatch.build.targets.wheel.force-include]
+'docs/llm.md' = 'velogger/llm.md'
+'docs/common.md' = 'velogger/common.md'
+'docs/velogger.md' = 'velogger/velogger.md'
+
+[tool.pytest.ini_options]
+testpaths = ['tests']
+
+# references/code-style.md 의 규칙 중 도구로 잡을 수 있는 것만 켠다. 줄 길이(E501)와 ruff format 은 쓰지 않는다
+# (format 은 §4 의 여러 줄 필드 선언을 한 줄로 합친다).
+[tool.ruff]
+target-version = 'py311'
+src = ['src', 'tests']
+
+[tool.ruff.lint]
+select = [
+    'F', 'E4', 'E7', 'E9',  # 안 쓰는 import·정의 안 된 이름·문법 오류
+    'I',  # import 순서 (§3)
+    'Q',  # 따옴표 (§2)
+    'UP006', 'UP007', 'UP035', 'UP045',  # 내장 제네릭, X | None, collections.abc (§5)
+    'TID252',  # 절대 import (§3)
+    'ANN001', 'ANN201', 'ANN202', 'ANN205', 'ANN206',  # 타입 힌트 (§5)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# 패키지 re-export 는 상대 import 로 쓴다 (§3)
+'**/__init__.py' = ['F401', 'TID252']
+'tests/**' = ['ANN']
+
+[tool.ruff.lint.flake8-quotes]
+inline-quotes = 'single'
+multiline-quotes = 'double'
+docstring-quotes = 'double'
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = 'all'
+
+[tool.ruff.lint.isort]
+known-first-party = ['velogger']
+# typing 은 프로젝트 import 뒤 마지막 그룹 (§3)
+section-order = ['future', 'standard-library', 'third-party', 'first-party', 'local-folder', 'typing']
+lines-after-imports = 2
+
+[tool.ruff.lint.isort.sections]
+typing = ['typing']
+
+[tool.mypy]
+python_version = '3.11'
+files = ['src']
+plugins = ['pydantic.mypy']
+disallow_untyped_defs = true
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true

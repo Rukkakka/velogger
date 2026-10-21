@@ -1,0 +1,33 @@
+# Changelog
+
+velogger 의 버전별 변경 기록. 사용자(에이전트 포함)에게 보이는 변경만 적고, 아직 릴리스하지 않은 변경은
+`Unreleased` 에 쌓는다. 번호 규칙과 쓰는 법은 [references/release.md](references/release.md) 에 있다.
+
+## Unreleased
+
+### 추가
+
+- 로그인·세션 관리: `login`(이메일 매직 링크 또는 `--cookie` 붙여넣기)·`logout`·`whoami`. velog 는 비밀번호가
+  없어 세션 쿠키로 로그인하며, 토큰은 `~/.config/velogger/session.json`(0600)에만 저장하고 출력하지 않는다. 로그인
+  정보는 `logged_in`·`username`·`is_trusted` 만 보여 준다 (이메일·사용자 ID 는 내보내지 않는다). code 가 없거나 이미
+  쓰였거나 만료됐으면 `LOGIN_FAILED` 로 새 링크를 받으라고 안내한다. velog 가 갱신해 준 토큰은 쓰기뿐 아니라 조회·`whoami`
+  뒤에도 다시 저장해, 조회만 해도 세션이 30일 뒤 끊기지 않는다
+- 조회 명령: `trending`·`recent`·`search`·`posts`·`post`(본문 마크다운)·`user`·`tag`(`--cursor` 로 다음 페이지,
+  전체 글 수는 `count`). 로그인 없이 되며, 목록은 공통 요약 모양(`url`·`is_private`·`is_temp` 포함, 초안의 `url` 은
+  편집 주소)으로, 본문은 `post` 로 받는다
+- 작성 명령(로그인 필요): `publish`(기본 임시저장, `--publish` 로 발행, 본문은 `--body`·`--file`, 파이프는
+  `--file -`, UTF-8 이고 맨 앞 BOM 은 뗀다)·`edit`(안 준 필드·시리즈·요약은 유지, 남의 글이거나 발행·공개 상태를
+  모르면 고치지 않는다)·`drafts`·`like`·`unlike`·`comment`·`stats`. 발행은 신뢰 계정(`is_trusted`)만 되고, 아니면
+  `FORBIDDEN` 으로 막고 웹 발행을 안내한다 (캡차를 풀지 않는다). velog 가 쓰기 결과를 주지 않으면 성공으로 내지 않고
+  `UPSTREAM_ERROR` 로 알린다. 남의 글·댓글·시리즈에 보낸 요청은 `FORBIDDEN`, 이미 있는 시리즈 slug·이미 시리즈에 든
+  글은 `ALREADY_EXISTS`. 글 삭제 명령은 없다
+- 댓글·시리즈·사람 조회: `comments`(작성자 포함, `--replies` 로 대댓글)·`series`(순서대로)·`followers`·
+  `followings`. 글 본문(`post`)은 댓글 수만 주므로 내용은 `comments` 로 받는다
+- 로그인 목록: `feed`(팔로우한 사람들의 글)·`liked`(좋아요한 글, `--read` 면 읽은 글)
+- 반응·편집: `comment-edit`·`comment-remove`(되돌릴 수 없어 `--yes` 필요)·`follow`·`unfollow`
+- 시리즈·이미지: `series-create`·`series-add`·`upload`(PNG·JPEG·GIF·WebP·AVIF·SVG 이미지만 올려 본문용 URL·markdown 을 준다.
+  이미지가 아닌 파일은 공개 주소가 되지 않게 내용으로 보고 막는다)
+- 요청 제한 상태 조회 `limits`
+- LLM 에이전트용 사용 가이드 `guide` (`docs/llm.md`·`docs/common.md`·`docs/velogger.md`)
+- 매일 조회 명령을 실제로 불러 보는 API 감시 (`scripts/monitor/`, `.github/workflows/api-monitor.yml`)와
+  README 데모 녹화 대본 (`scripts/demo/`)

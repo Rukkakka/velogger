@@ -1,0 +1,59 @@
+name: 🐛 버그 제보
+description: 명령이 문서와 다르게 동작하거나, 결과가 잘못 나올 때
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        제보 감사합니다. 붙여 넣는 내용에서 **토큰·쿠키·이메일 같은 개인정보는 지워 주세요.**
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: 영역
+      description: 어느 부분에서 문제가 생겼나요?
+      options:
+        - 로그인·세션 (login, whoami)
+        - 조회 (trending, search, post, user 등)
+        - 작성 (publish, like, comment 등)
+        - 요청 제한 (limits, RATE_LIMITED)
+        - CLI 출력·에러 형식
+        - 기타 / 잘 모르겠음
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 무슨 일이 있었나요?
+      description: 기대한 결과와 실제 결과를 적어 주세요.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: 재현 방법
+      description: 문제를 일으키는 가장 짧은 명령.
+      placeholder: "velogger search fastapi --limit 3"
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: 출력 또는 에러
+      description: stdout 결과나 stderr 의 에러 JSON. `--verbose` 로그가 있으면 함께 붙여 주세요. 토큰·쿠키·이메일은 지우세요.
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: versions
+    attributes:
+      label: 환경
+      description: "`velogger --version` 출력, Python 버전, 실행한 날짜. 비공식 API 라 날짜가 중요합니다."
+      placeholder: "velogger 0.1.0 (커밋 a1b2c3d), Python 3.11.6, 2026-10-18"
+    validations:
+      required: false
