@@ -10,7 +10,6 @@
   <a href="https://pypi.org/project/velogger/"><img src="https://img.shields.io/badge/python-3.11%2B-blue" alt="Python 3.11+"></a>
   <a href="https://github.com/Rukkakka/velogger/actions/workflows/ci.yml"><img src="https://github.com/Rukkakka/velogger/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <a href="https://github.com/Rukkakka/velogger/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT"></a>
-  <a href="https://github.com/Rukkakka/velogger/blob/main/CHANGELOG.md"><img src="https://img.shields.io/badge/status-pre--alpha-orange" alt="status: pre-alpha"></a>
 </p>
 
 <p align="center">
@@ -28,7 +27,6 @@
 </p>
 
 > 비공식 API 를 쓴다. 스펙이 예고 없이 바뀔 수 있고, 자동수집·자동작성은 velog 약관과 상충할 소지가 있으니 개인 용도로만 쓴다.
-> **pre-alpha** — 조회·로그인·쓰기 명령은 갖췄지만 아직 초기 버전(0.x)이라 명령과 출력 형식이 바뀔 수 있다. 바뀐 점은 [변경 기록](https://github.com/Rukkakka/velogger/blob/main/CHANGELOG.md)에 적는다.
 
 Claude, ChatGPT 같은 LLM 에이전트가 velog 를 다룰 때 셸로 부르는 도구다. 무엇을 할지는 사용자와 LLM 이 정하고, velog 의 조회 절차·요청 제한·로그인을 지키며 결과를 공통 JSON 으로 돌려주는 일은 CLI 가 맡는다. 이름은 velog 사용자를 부르는 말 "벨로거"에서 따왔고, velog 가 만든 공식 도구가 아니다. 같은 구조의 형제 프로젝트로 부동산 [jibsa](https://github.com/Rukkakka/jibsa) 와 항공권 [baenggipyo](https://github.com/Rukkakka/baenggipyo) 가 있다.
 
