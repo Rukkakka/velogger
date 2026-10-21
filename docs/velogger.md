@@ -106,6 +106,8 @@ velogger post someone -- -회고      # slug 가 '-' 로 시작하면 앞에 -- 
 
 **반환값**: `body`(본문. `is_markdown: true` 면 마크다운), `title`·`tags`·`likes`·`comments_count`·`released_at`, `is_private`·`is_temp`, 속한 `series`(이름·url·시리즈 안 글), 같은 시리즈의 `previous_post`·`next_post`. 없는 글은 `NOT_FOUND`.
 
+velog 가 시리즈 안 글 목록을 주지 않으면 `series.posts` 는 `null`(모름)이다. 로그인한 채로 시리즈에 든 내 글을 읽으면 velog 서버 오류로 이 목록만 빠지고, 그 사실을 `notes` 로 알린다. 목록은 `velogger series <username> <시리즈 url 끝부분>` 으로 받는다.
+
 ## `user` — 사용자
 
 | 인자 | 설명 |
@@ -134,12 +136,13 @@ velogger tag react --limit 20 --cursor <이전 결과의 next_cursor>
 `velogger comments <글 id> [--replies]`. `id` 는 목록·`post` 결과의 `id`. **`post` 는 댓글 수만 주므로 내용은 이
 명령으로 받는다** (작성자가 채워지는 v2 경로를 쓴다).
 
-`--replies` 를 주면 대댓글이 있는 댓글마다 요청을 한 번씩 더 보내 `replies` 를 채운다 (댓글이 많으면 요청이
-그만큼 늘어난다). 삭제된 댓글은 velog 가 내용을 주지 않아 `deleted: true` 로만 온다.
+`--replies` 를 주면 대댓글이 있는 최상위 댓글마다 요청을 한 번씩 더 보내 `replies` 를 채운다 (댓글이 많으면 요청이
+그만큼 늘어난다). velog 는 대댓글에 다시 대댓글을 달 수 있어(2단계까지), 대댓글의 `replies` 에 그 대댓글이 같은 모양으로
+들어 있다. 삭제된 댓글은 velog 가 내용을 주지 않아 `deleted: true` 로만 온다.
 
 반환: `post_id`, `comments_count`(대댓글 포함 전체), `returned`(최상위 댓글 수), `comments[]`
 (`id`·`username`·`text`·`created_at`·`replies_count`·`deleted`, `--replies` 일 때만 `replies`). `replies` 는 대댓글이
-없으면 `[]` 이고, `--replies` 없이 부르면 키 자체가 없다.
+없으면 `[]`, 있는데 velog 가 주지 않았으면 `null`(모름)이고, `--replies` 없이 부르면 키 자체가 없다.
 
 ## `series` — 시리즈 글 순서대로
 
@@ -217,6 +220,8 @@ PowerShell 5·옛 메모장이 붙인다)은 떼고 읽는다.
 ### `comment` — 댓글
 
 `velogger comment <id> "<내용>" [--reply-to <comment_id>]`. 글에 댓글을, `--reply-to` 로 대댓글을 단다.
+대댓글은 2단계까지라, 대댓글의 대댓글(`comments --replies` 의 가장 안쪽)에 `--reply-to` 로 달면 velog 가 거절해
+`INVALID_ARGUMENT` 다 (그 위 대댓글에 단다). 빈 내용이나 공백만 있는 내용은 보내지 않는다 (`INVALID_ARGUMENT`).
 
 ### `comment-edit` / `comment-remove` — 내 댓글 수정·삭제
 
@@ -225,8 +230,8 @@ velogger comment-edit <댓글 id> "고친 내용"
 velogger comment-remove <댓글 id> --yes
 ```
 
-댓글 id 는 `comments` 결과의 `id`. **삭제는 되돌릴 수 없어 `--yes` 가 없으면 거부**한다. 빈 내용으로는 고치지 않는다
-(`INVALID_ARGUMENT`. velog 는 빈 댓글로 저장한다).
+댓글 id 는 `comments` 결과의 `id`. **삭제는 되돌릴 수 없어 `--yes` 가 없으면 거부**한다. 빈 내용이나 공백만 있는
+내용으로는 고치지 않는다 (`INVALID_ARGUMENT`. velog 는 그대로 빈 댓글로 저장한다).
 
 ### `follow` / `unfollow` — 팔로우
 
@@ -244,12 +249,12 @@ velogger series-add <시리즈 id> <글 id>        # 시리즈 맨 뒤에 넣는
 `id`·`name`·`url_slug`, `series-add` 가 `series_id`·`post_id`·`added`.
 
 같은 slug 의 시리즈가 이미 있거나(`series-create`), 이미 그 시리즈에 든 글이면(`series-add`) `ALREADY_EXISTS` 다. 다시
-보내도 결과가 같으니 다른 `--slug` 를 주거나 이미 있는 것을 쓴다. 이름이 비면 `INVALID_ARGUMENT` 다.
+보내도 결과가 같으니 다른 `--slug` 를 주거나 이미 있는 것을 쓴다. 이름이나 `--slug` 가 비었거나 공백뿐이면 `INVALID_ARGUMENT` 다.
 
 ### `upload` — 이미지 올리기
 
 `velogger upload <파일 경로> --post <글 id>`. velog 에 이미지를 올리고 `url` 과, 본문에 그대로 붙여 넣을 수 있는
-마크다운 이미지 문법 문자열(`markdown` 필드)을 준다.
+마크다운 이미지 문법 문자열(`markdown` 필드. 대체 텍스트는 파일 이름이고 `[`·`]`·`\` 는 이스케이프한다)을 준다.
 
 **`--post` 는 필수다.** velog 는 어느 글에 들어갈 이미지인지(`ref_id`) 모르거나 그 글이 내 글이 아니면 업로드를 403
 으로 막는다 (CLI 는 `FORBIDDEN`). 웹 에디터도 글을 초안으로 먼저 저장해 id 를 받은 뒤에 이미지를 올린다. 그래서 순서는 이렇다.
@@ -304,11 +309,13 @@ velogger login --cookie 'access_token=...; refresh_token=...'
 
 로그인에 성공하면 `whoami` 와 같은 형식(`logged_in`, `username`, `is_trusted`)을 돌려준다. 이메일만 보낸 단계(`velogger login <이메일>`)에서는 `email`, `registered`, 다음에 할 일 `message` 를 돌려준다.
 
+`--code` 는 velog 가 준 세션을 받자마자 저장한다. code 는 한 번 쓰면 다시 쓸 수 없어, 뒤이은 로그인 확인 요청이 일시적으로 실패해도 로그인은 남기고 velog 로그인 응답의 계정으로 결과를 낸다 (그때 모르는 `is_trusted` 는 `null`. `whoami` 로 다시 본다).
+
 ### 오류와 대응
 
 | code | 뜻 |
 | --- | --- |
-| `LOGIN_FAILED` | code 가 없거나(404) 이미 쓰였거나(403) 24시간이 지났거나(410), 쿠키가 잘못됨. 새 링크를 받는다 |
+| `LOGIN_FAILED` | code 가 없거나(404) 이미 쓰였거나(403) 24시간이 지났거나(410), 쿠키가 잘못됨. 새 링크를 받는다. `details.registered: false` 면 velog 계정이 없는 이메일로 온 가입 링크다 — 가입된 이메일로 다시 `login` 하거나, 웹에서 가입을 마친 뒤 로그인한다 |
 | `INVALID_ARGUMENT` | `--code`/`--cookie` 형식이 맞지 않음 |
 
 ## `logout`
@@ -317,7 +324,7 @@ velogger login --cookie 'access_token=...; refresh_token=...'
 
 ## `whoami`
 
-지금 로그인한 계정을 보여 준다. 로그인 안 했으면 `logged_in: false`.
+지금 로그인한 계정을 보여 준다. 로그인 안 했으면 `logged_in: false` (저장된 세션이 없으면 velog 에 묻지 않는다).
 
 | 필드 | 의미 |
 | --- | --- |

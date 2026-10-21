@@ -5,10 +5,15 @@ velog 는 비밀번호가 없어, 이메일 매직 링크나 소셜 로그인으
 출력 모델에 넣지 않는다 (로그인 여부·username·is_trusted 만 보여 준다).
 """
 
+import logging
 import re
 from urllib.parse import unquote
 
-from httpx import HTTPStatusError
+from httpx import (
+    HTTPError,
+    HTTPStatusError,
+    Response,
+)
 from pydantic import (
     BaseModel,
     ConfigDict,
@@ -17,7 +22,10 @@ from pydantic import (
 
 from velogger.api.client import VelogClient
 from velogger.api.request.auth import VelogSendmailRequestPayloadModel
-from velogger.api.response.auth import VelogAuthUserModel
+from velogger.api.response.auth import (
+    VelogAuthUserModel,
+    VelogCodeLoginResponseModel,
+)
 from velogger.core.errors import VeloggerError
 from velogger.core.session import (
     Session,
@@ -28,6 +36,8 @@ from velogger.service.common import fetch_auth
 
 from typing import Annotated
 
+
+logger = logging.getLogger(__name__)
 
 # 링크·쿼리 문자열·`code=값` 어디에 있든 code 파라미터 값을 꺼낸다 (`velog.io/email-login?code=abc`, `code=abc`)
 CODE_PARAM_PATTERN: re.Pattern[str] = re.compile(r'(?:^|[?&#])code=([^&#\s]+)')
@@ -124,7 +134,12 @@ def parse_cookie_header(raw: str) -> list[StoredCookie]:
 
 
 def whoami(client: VelogClient) -> VelogWhoami:
-    """현재 로그인 상태를 돌려준다 (로그인 안 했으면 `logged_in: false`)."""
+    """현재 로그인 상태를 돌려준다 (로그인 안 했으면 `logged_in: false`).
+
+    실을 세션 쿠키가 없으면 velog 에 묻지 않는다. 쿠키 없이 보낸 `auth` 는 늘 null 이라, 요청 제한 슬롯만 쓴다.
+    """
+    if not client.cookies:
+        return VelogWhoami(logged_in=False)
     user = fetch_auth(client)
     if user is None:
         return VelogWhoami(logged_in=False)
@@ -150,12 +165,15 @@ def send_login_mail(client: VelogClient, email: str) -> VelogLoginMailResult:
 def complete_login_with_code(client: VelogClient, raw_code: str) -> VelogWhoami:
     """메일에서 받은 code 를 세션 쿠키로 바꾸고 세션을 저장한다.
 
+    쿠키를 받자마자 저장한 뒤 `auth` 로 확인한다. 확인 요청만 실패하면 로그인 응답 본문의 사용자로 결과를 낸다.
+
     Raises:
-        VeloggerError: code 가 다 쓰였거나 잘못됐을 때, velog 가 쿠키를 주지 않았을 때(`LOGIN_FAILED`).
+        VeloggerError: code 가 다 쓰였거나 잘못됐을 때, 계정이 없는 이메일의 가입 링크일 때, velog 가 쿠키를 주지
+            않았을 때, 받은 쿠키로 로그인되지 않을 때 (`LOGIN_FAILED`).
     """
     code = parse_login_code(raw_code)
     try:
-        client.run_request_code(code)
+        response = client.run_request_code(code)
     except HTTPStatusError as exc:
         # 그대로 두면 404 는 '내려간 글' 힌트의 NOT_FOUND, 403 은 '차단된 요청' 힌트의 FORBIDDEN, 410 은 '스펙이 바뀌었을
         # 수 있다' 는 UPSTREAM_ERROR 가 돼, 에이전트가 새 링크를 받는 대신 엉뚱한 원인을 찾는다
@@ -168,13 +186,45 @@ def complete_login_with_code(client: VelogClient, raw_code: str) -> VelogWhoami:
             hint='`velogger login <이메일>` 로 새 링크를 받으세요. 링크는 브라우저로 열지 말고 복사만 하세요',
             details={'status': status},
         ) from None
-    if not client.current_cookies():
+    body = _code_login_body(response)
+    cookies = client.current_cookies()
+    if not cookies:
+        if body.register_token:
+            # 계정이 없는 이메일로 받은 가입 링크다. '만료됐을 수 있다' 고 하면 새 링크를 받아도 또 가입 링크가 와 되풀이된다
+            raise VeloggerError(
+                code='LOGIN_FAILED',
+                message='velog 계정이 없는 이메일로 받은 가입 링크입니다 (로그인 code 가 아닙니다)',
+                hint=(
+                    'velog 에 가입된 이메일로 `velogger login <이메일>` 을 다시 실행하세요. 새로 가입하려면 그 메일의 링크를 '
+                    '브라우저로 열어 velog.io 에서 가입을 마친 뒤 로그인하세요 (CLI 는 가입하지 않습니다)'
+                ),
+                details={'registered': False},
+            )
         raise VeloggerError(
             code='LOGIN_FAILED',
             message='velog 가 세션 쿠키를 발급하지 않았습니다',
             hint='code 가 만료됐거나 이미 쓰였을 수 있습니다. `velogger login` 으로 새 링크를 받으세요',
         )
-    return _verify_and_save(client)
+    # code 는 이 응답으로 다 썼다 (velog-server 가 `logged` 로 표시해 다시 보내면 403 TOKEN_ALREADY_USED). 아래 확인 요청이
+    # 실패했다고 쿠키를 버리면 같은 링크로는 다시 로그인할 수 없어 메일을 새로 받아야 하므로, 쿠키부터 저장한다.
+    save_session(Session(cookies=cookies, username=body.username))
+    try:
+        user = fetch_auth(client)
+    except (VeloggerError, HTTPError, ValueError) as exc:
+        # 확인 요청만 실패했다 (5xx·네트워크·요청 제한 등). 세션은 저장했고 쿠키는 velog 가 방금 이 code 로 발급한 것이라,
+        # 실패로 내면 에이전트가 같은 code 로 다시 보내 'TOKEN_ALREADY_USED' 를 보고 새 링크를 받게 한다. 로그인 응답의
+        # 사용자로 낸다 (모르는 is_trusted 는 null).
+        logger.warning('로그인 확인 요청이 실패해 velog 로그인 응답의 사용자로 결과를 냅니다 (세션은 저장됨): %s', type(exc).__name__)
+        return VelogWhoami(logged_in=True, username=body.username, is_trusted=body.is_trusted)
+    return _save_verified(client, user)
+
+
+def _code_login_body(response: Response) -> VelogCodeLoginResponseModel:
+    """code 교환 응답 본문. JSON 이 아니거나 모양이 달라도 빈 모델로 본다 (쿠키는 이미 받았을 수 있어 여기서 실패하지 않는다)."""
+    try:
+        return VelogCodeLoginResponseModel.model_validate(response.json())
+    except ValueError:
+        return VelogCodeLoginResponseModel()
 
 
 def _is_code_already_used(exc: HTTPStatusError) -> bool:
@@ -192,11 +242,11 @@ def verify_and_save_session(client: VelogClient) -> VelogWhoami:
     Raises:
         VeloggerError: 그 쿠키로 로그인되지 않을 때 (`LOGIN_FAILED`).
     """
-    return _verify_and_save(client)
+    return _save_verified(client, fetch_auth(client))
 
 
-def _verify_and_save(client: VelogClient) -> VelogWhoami:
-    user = fetch_auth(client)
+def _save_verified(client: VelogClient, user: VelogAuthUserModel | None) -> VelogWhoami:
+    """`auth` 로 확인한 사용자로 세션을 저장한다. `user` 가 None(그 쿠키로 로그인되지 않음)이면 `LOGIN_FAILED`."""
     if user is None:
         raise VeloggerError(
             code='LOGIN_FAILED',

@@ -4,13 +4,16 @@ import logging
 import re
 import sys
 import unicodedata
-from collections.abc import Sequence
+from collections.abc import (
+    Iterator,
+    Sequence,
+)
+from contextlib import contextmanager
 from importlib.metadata import distribution
 from importlib.resources import files
 from pathlib import Path
 
 import typer
-from pydantic import BaseModel
 from typer._click import (  # Typer 가 내장한 Click. 비공개 경로라 Typer 업그레이드 시 확인 필요.
     Command,
     Context,
@@ -91,10 +94,7 @@ from velogger.service.write import (
     write_comment,
 )
 
-from typing import (
-    Annotated,
-    Any,
-)
+from typing import Annotated
 
 
 logger = logging.getLogger(__name__)
@@ -223,10 +223,8 @@ def whoami_command(pretty: PrettyOption = None) -> None:
 
     is_trusted 가 false 면 글 발행에 캡차가 붙어 CLI 로는 발행할 수 없다.
     """
-    with handle_errors():
-        session = load_session()
-        with VelogClient(cookies=session.cookies or None) as client:
-            _emit_and_persist(client, whoami(client), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(whoami(client), pretty)
 
 
 @app.command('limits')
@@ -245,19 +243,6 @@ def limits_command(
 LimitOption = Annotated[int, typer.Option(min=1, max=100, help='받을 글 수 (최대 100)')]
 
 
-def _read_client() -> VelogClient:
-    """조회용 클라이언트. 로그인돼 있으면 세션 쿠키를 실어, 본인 비공개 글 등도 보이게 한다 (조회는 로그인 없이도 된다).
-
-    쿠키를 실었으면 결과는 `_emit_and_persist` 로 낸다. 조회에도 velog 가 토큰을 갱신해 주므로 저장하지 않으면 조회만
-    하는 사용자의 refresh_token 이 30일 뒤 만료된다 (`_persist`).
-
-    세션 파일이 있는데 읽지 못하면(권한·샌드박스) 익명 조회로 넘어가지 않고 `load_session` 의 에러를 그대로 내는 것은
-    일부러다. 말없이 익명으로 넘어가면 본인 비공개 글이 `NOT_FOUND`, `posts <내 아이디>` 가 공개 글만 돌려줘 에이전트가
-    '없는 글' 로 결론 낸다. 에러 힌트대로 `VELOGGER_CONFIG_DIR` 를 고치면 된다 (2026-10-20 재현·검토).
-    """
-    return VelogClient(cookies=load_session().cookies or None)
-
-
 @app.command('trending')
 def trending_command(
     period: Annotated[Timeframe, typer.Option('--period', help='집계 기간')] = 'week',
@@ -266,15 +251,15 @@ def trending_command(
     pretty: PrettyOption = None,
 ) -> None:
     """트렌딩 글 목록 (기간: day·week·month·year). 본문은 velogger post <username> <url_slug>."""
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, get_trending(client, timeframe=period, limit=limit, offset=offset), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(get_trending(client, timeframe=period, limit=limit, offset=offset), pretty)
 
 
 @app.command('recent')
 def recent_command(limit: LimitOption = 20, pretty: PrettyOption = None) -> None:
     """최신 글 목록. 상단에 스팸이 끼기도 한다 (velog 서버 결과를 그대로 전한다)."""
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, get_recent(client, limit=limit), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(get_recent(client, limit=limit), pretty)
 
 
 @app.command('search')
@@ -286,8 +271,8 @@ def search_command(
     pretty: PrettyOption = None,
 ) -> None:
     """글 검색. count 로 전체 결과 수를 알려 준다."""
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, search_posts(client, keyword, username=user, offset=offset, limit=limit), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(search_posts(client, keyword, username=user, offset=offset, limit=limit), pretty)
 
 
 @app.command('posts')
@@ -298,8 +283,8 @@ def posts_command(
     pretty: PrettyOption = None,
 ) -> None:
     """한 사용자의 글 목록. 전역 태그 검색은 velogger tag <name> 을 쓴다."""
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, get_user_posts(client, username, tag=tag, limit=limit), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(get_user_posts(client, username, tag=tag, limit=limit), pretty)
 
 
 @app.command('post')
@@ -312,8 +297,9 @@ def post_command(
 
     예: velogger post teo ai-native-fe
     """
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, read_post(client, username, url_slug), pretty)
+    with handle_errors(), _session_client() as client:
+        detail = read_post(client, username, url_slug)
+        emit(detail, pretty, detail.notes or None)
 
 
 @app.command('user')
@@ -322,8 +308,8 @@ def user_command(
     pretty: PrettyOption = None,
 ) -> None:
     """사용자 프로필·많이 쓴 태그·시리즈 목록. 글 목록은 velogger posts <username>."""
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, get_user(client, username), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(get_user(client, username), pretty)
 
 
 @app.command('tag')
@@ -334,30 +320,47 @@ def tag_command(
     pretty: PrettyOption = None,
 ) -> None:
     """태그별 글 목록(+태그 설명). 전체 글 수는 count, 다음 페이지는 결과의 next_cursor 를 --cursor 로 넘긴다."""
-    with handle_errors(), _read_client() as client:
+    with handle_errors(), _session_client() as client:
         listing = get_tag_posts(client, name, limit=limit, cursor=cursor)
         payload = listing.model_dump()
         # 태그 설명은 페이지마다 같아 첫 페이지에서만 받는다 (요청을 줄인다)
         info = get_tag_info(client, name) if cursor is None else None
         if info is not None:
             payload = {'tag': info.model_dump(), **payload}
-        _emit_and_persist(client, payload, pretty)
+        emit(payload, pretty)
 
 
-def _authed_client() -> VelogClient:
-    """로그인 세션으로 만든 클라이언트. 세션이 없으면 네트워크 없이 바로 NOT_LOGGED_IN 으로 막는다."""
+@contextmanager
+def _session_client(*, login_required: bool = False) -> Iterator[VelogClient]:
+    """저장된 세션 쿠키를 실은 클라이언트. 명령이 끝나면 성공·실패와 상관없이 갱신된 쿠키를 저장한다 (`_persist`).
+
+    로그인돼 있으면 조회에도 세션 쿠키를 실어 본인 비공개 글 등도 보이게 한다 (조회는 로그인 없이도 된다).
+    `login_required` 면 세션이 없을 때 네트워크 없이 바로 NOT_LOGGED_IN 으로 막는다.
+
+    저장을 명령마다 부르지 않고 여기서 하는 것은, 결과를 낸 뒤 stdout 이 닫혔거나(`| head` 의 BrokenPipeError)
+    `require_auth` 가 토큰을 갱신한 뒤 서비스가 에러를 낸 경우에도 받은 토큰을 남기려는 것이다. 결과를 낸 뒤에 저장하는
+    순서는 그대로다 (`_persist`).
+
+    세션 파일이 있는데 읽지 못하면(권한·샌드박스) 익명 조회로 넘어가지 않고 `load_session` 의 에러를 그대로 내는 것은
+    일부러다. 말없이 익명으로 넘어가면 본인 비공개 글이 `NOT_FOUND`, `posts <내 아이디>` 가 공개 글만 돌려줘 에이전트가
+    '없는 글' 로 결론 낸다. 에러 힌트대로 `VELOGGER_CONFIG_DIR` 를 고치면 된다 (2026-10-20 재현·검토).
+    """
     session = load_session()
-    if not session.cookies:
+    if login_required and not session.cookies:
         raise not_logged_in_error()
-    return VelogClient(cookies=session.cookies)
+    with VelogClient(cookies=session.cookies or None) as client:
+        try:
+            yield client
+        finally:
+            _persist(client, session.username)
 
 
 def _cookie_set(cookies: list[StoredCookie] | None) -> set[tuple[str, str, str, str]]:
     return {(cookie.name, cookie.value, cookie.domain, cookie.path) for cookie in cookies or []}
 
 
-def _persist(client: VelogClient) -> None:
-    """요청 뒤 갱신된 세션 쿠키(토큰 회전)를 다시 저장한다. 실패해도 명령은 성공으로 둔다 (로그만 남긴다).
+def _persist(client: VelogClient, username: str | None) -> None:
+    """요청 뒤 갱신된 세션 쿠키(토큰 회전)를 다시 저장한다. 실패해도 명령 결과는 그대로 둔다 (로그만 남긴다).
 
     쓰기만이 아니라 조회 뒤에도 부른다. velog 는 access_token 수명이 30분 아래로 남은 요청이면 조회든 쓰기든 새 토큰을
     Set-Cookie 로 주고, refresh_token 도 23일 아래로 남으면 새로 준다 (velog-server `consumeUser`·`refreshUserToken`.
@@ -365,33 +368,26 @@ def _persist(client: VelogClient) -> None:
     사용자는 로그인 30일 뒤 refresh_token 이 만료돼 NOT_LOGGED_IN 이 된다. 세션 없이 보낸 조회는 저장하지 않는다 (익명
     요청에 붙은 쿠키로 세션 파일을 만들지 않게).
 
-    결과를 낸 뒤에 부른다. 서버는 이미 요청을 처리했으므로, 저장 실패로 결과를 버리면 에이전트가 실패로 보고 같은
-    쓰기를 다시 보내 글·댓글이 두 번 생긴다 (2026-10-20 재현: 쓰기가 막힌 설정 폴더에서 drafts 가 stdout 없이
-    INTERNAL_ERROR). 갱신된 토큰을 못 남겨도 다음 실행이 refresh_token 으로 다시 갱신한다.
+    결과를 낸 뒤에 부른다 (`_session_client` 를 나갈 때). 서버는 이미 요청을 처리했으므로, 저장 실패로 결과를 버리면
+    에이전트가 실패로 보고 같은 쓰기를 다시 보내 글·댓글이 두 번 생긴다 (2026-10-20 재현: 쓰기가 막힌 설정 폴더에서
+    drafts 가 stdout 없이 INTERNAL_ERROR). 갱신된 토큰을 못 남겨도 다음 실행이 refresh_token 으로 다시 갱신한다.
 
     쿠키가 처음 실은 그대로면 쓰지 않는다. 늘 다시 쓰면, 동시에 돈 다른 velogger 가 갱신해 저장한 토큰을 이 프로세스가
     가진 옛 토큰으로 덮는다 (2026-10-20 확인: 쿠키가 같아도 매번 session.json 을 새 파일로 바꿔 썼다).
+
+    velog 가 쿠키를 모두 지웠을 때도 쓰지 않는다. v3 는 토큰이 잘못됐다고 보면 빈 Set-Cookie 로 쿠키를 지운다 (2026-10-21
+    실측: 가짜 토큰 세션으로 recent 를 부르니 쿠키가 모두 지워졌고, v2 는 지우지 않았다). 그대로 쓰면 일시적인 판정에도
+    세션 파일이 비어 다시 로그인해야 한다. 세션은 `logout` 으로만 지운다.
     """
     if not client.cookies:
         return
     cookies = client.current_cookies()
-    if _cookie_set(cookies) == _cookie_set(client.cookies):
+    if not cookies or _cookie_set(cookies) == _cookie_set(client.cookies):
         return
     try:
-        save_session(Session(cookies=cookies, username=load_session().username))
+        save_session(Session(cookies=cookies, username=username))
     except SessionError as exc:
         logger.warning('갱신된 세션을 저장하지 못했습니다 (결과에는 영향 없음): %s', exc.message)
-
-
-def _emit_and_persist(
-    client: VelogClient,
-    result: BaseModel | dict[str, Any],
-    pretty: bool | None,
-    notes: list[str] | None = None,
-) -> None:
-    """결과를 먼저 내보내고, 갱신된 세션을 저장한다 (`_persist`). 세션 쿠키를 싣는 명령은 모두 이걸로 낸다."""
-    emit(result, pretty, notes)
-    _persist(client)
 
 
 def _split_tags(values: list[str] | None) -> list[str]:
@@ -482,12 +478,12 @@ def publish_command(
     """
     with handle_errors():
         text = _resolve_body(body, file)
-        with _authed_client() as client:
+        with _session_client(login_required=True) as client:
             result = publish(
                 client, title=title, body=text, tags=_split_tags(tag), publish_now=publish_flag,
                 is_private=private, is_markdown=markdown, url_slug=slug, thumbnail=thumbnail, series_id=series_id,
             )
-            _emit_and_persist(client, result, pretty)
+            emit(result, pretty)
 
 
 @app.command('edit')
@@ -508,36 +504,36 @@ def edit_command(
     """
     with handle_errors():
         new_body = _resolve_body(body, file) if (body is not None or file is not None) else None
-        with _authed_client() as client:
+        with _session_client(login_required=True) as client:
             result = edit_post(
                 client, post_id, title=title, body=new_body,
                 tags=_split_tags(tag) if tag else None, is_private=private, publish_now=publish_flag, url_slug=slug,
             )
-            _emit_and_persist(client, result, pretty)
+            emit(result, pretty)
 
 
 @app.command('drafts')
 def drafts_command(limit: LimitOption = 20, pretty: PrettyOption = None) -> None:
     """내 임시저장(초안) 글 목록. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = get_drafts(client, limit=limit)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('like')
 def like_command(post_id: Annotated[str, typer.Argument(help='글 ID (목록·post 결과의 id)')], pretty: PrettyOption = None) -> None:
     """글에 좋아요. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = like_post(client, post_id)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('unlike')
 def unlike_command(post_id: Annotated[str, typer.Argument(help='글 ID')], pretty: PrettyOption = None) -> None:
     """글 좋아요를 취소한다. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = unlike_post(client, post_id)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('comment')
@@ -548,17 +544,17 @@ def comment_command(
     pretty: PrettyOption = None,
 ) -> None:
     """글에 댓글(또는 --reply-to 로 대댓글)을 단다. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = write_comment(client, post_id, text, comment_id=reply_to)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('stats')
 def stats_command(post_id: Annotated[str, typer.Argument(help='내 글 ID')], pretty: PrettyOption = None) -> None:
     """내 글의 조회수 통계(전체 + 일별). 본인 글만, 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = get_stats(client, post_id)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('comments')
@@ -571,8 +567,8 @@ def comments_command(
 
     댓글 내용은 post 가 주지 않으므로 이 명령으로 받는다.
     """
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, get_comments(client, post_id, with_replies=replies), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(get_comments(client, post_id, with_replies=replies), pretty)
 
 
 @app.command('series')
@@ -582,9 +578,9 @@ def series_command(
     pretty: PrettyOption = None,
 ) -> None:
     """시리즈 안의 글을 순서대로 보여 준다."""
-    with handle_errors(), _read_client() as client:
+    with handle_errors(), _session_client() as client:
         series = get_series(client, username, url_slug)
-        _emit_and_persist(client, series, pretty, notes=series.notes or None)
+        emit(series, pretty, series.notes or None)
 
 
 @app.command('followers')
@@ -594,8 +590,8 @@ def followers_command(
     pretty: PrettyOption = None,
 ) -> None:
     """그 사용자를 팔로우하는 사람 목록."""
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, get_followers(client, username, limit=limit), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(get_followers(client, username, limit=limit), pretty)
 
 
 @app.command('followings')
@@ -605,16 +601,16 @@ def followings_command(
     pretty: PrettyOption = None,
 ) -> None:
     """그 사용자가 팔로우하는 사람 목록."""
-    with handle_errors(), _read_client() as client:
-        _emit_and_persist(client, get_followings(client, username, limit=limit), pretty)
+    with handle_errors(), _session_client() as client:
+        emit(get_followings(client, username, limit=limit), pretty)
 
 
 @app.command('feed')
 def feed_command(limit: LimitOption = 20, pretty: PrettyOption = None) -> None:
     """내가 팔로우한 사람들의 최신 글. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = get_feed(client, limit=limit)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('liked')
@@ -624,9 +620,9 @@ def liked_command(
     pretty: PrettyOption = None,
 ) -> None:
     """내가 좋아요한 글 목록 (--read 면 읽은 글). 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = get_reading_list(client, list_type='READ' if read else 'LIKED', limit=limit)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('comment-edit')
@@ -636,9 +632,9 @@ def comment_edit_command(
     pretty: PrettyOption = None,
 ) -> None:
     """내 댓글 내용을 고친다. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = edit_comment(client, comment_id, text)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('comment-remove')
@@ -656,9 +652,9 @@ def comment_remove_command(
             '댓글 삭제는 되돌릴 수 없습니다',
             '정말 지우려면 --yes 를 붙이세요. 에이전트는 사용자 확인 없이 붙이지 않습니다',
         )
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = remove_comment(client, comment_id)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('follow')
@@ -667,9 +663,9 @@ def follow_command(
     pretty: PrettyOption = None,
 ) -> None:
     """사용자를 팔로우한다. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = follow_user(client, username)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('unfollow')
@@ -678,9 +674,9 @@ def unfollow_command(
     pretty: PrettyOption = None,
 ) -> None:
     """사용자 팔로우를 끊는다. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = unfollow_user(client, username)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('series-create')
@@ -690,9 +686,9 @@ def series_create_command(
     pretty: PrettyOption = None,
 ) -> None:
     """시리즈를 만든다. 돌려받은 id 를 publish --series-id 나 series-add 에 쓴다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = create_series(client, name, url_slug=slug)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('series-add')
@@ -702,9 +698,9 @@ def series_add_command(
     pretty: PrettyOption = None,
 ) -> None:
     """시리즈 맨 뒤에 글을 넣는다. 로그인이 필요하다."""
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = add_to_series(client, series_id, post_id)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('upload')
@@ -720,9 +716,9 @@ def upload_command(
 
     예: velogger publish "제목" --body "임시" → (id) → velogger upload a.png --post <id> → velogger edit <id> --file post.md
     """
-    with handle_errors(), _authed_client() as client:
+    with handle_errors(), _session_client(login_required=True) as client:
         result = upload_image(client, _local_path(file), post_id=post)
-        _emit_and_persist(client, result, pretty)
+        emit(result, pretty)
 
 
 @app.command('guide')
@@ -863,17 +859,37 @@ def _usage_error_hint(exc: UsageError, command: str) -> str:
     return f"'{command} --help' 로 사용법을 확인하세요"
 
 
+def _compose_argument(value: str) -> str:
+    """인자를 NFC 로 맞추되, 혼자서도 NFC 가 다른 글자로 바꾸는 글자는 그대로 둔다.
+
+    그런 글자는 CJK 호환 한자(樂 U+F914 → U+6A02)·옴 기호(Ω U+2126 → U+03A9)처럼 사용자가 고른 글자다. 인자에는 제목·
+    본문·댓글도 있어 바꾸면 velog 에 쓴 것과 다른 글이 저장된다. NFD 로 나뉜 글자에는 이런 글자가 없어(NFD 결과의 글자는
+    모두 혼자서 NFC 그대로다) 자모 합치기에는 영향이 없다.
+    """
+    if unicodedata.is_normalized('NFC', value):
+        return value
+    pieces: list[str] = []
+    start = 0
+    for index, char in enumerate(value):
+        if unicodedata.normalize('NFC', char) != char:
+            pieces.append(unicodedata.normalize('NFC', value[start:index]))
+            pieces.append(char)
+            start = index + 1
+    pieces.append(unicodedata.normalize('NFC', value[start:]))
+    return ''.join(pieces)
+
+
 def run(argv: Sequence[str] | None = None) -> int:
     """CLI 를 실행하고 exit code 를 돌려준다.
 
     Typer 를 standalone 모드 없이 돌려 사용법 오류도 `{"error": {...}}` JSON 으로 stderr 에 쓴다 (exit 2).
     stdout 이 터미널이 아니면 도움말을 Rich 표 대신 줄글로 쓴다.
     """
-    # macOS 에서 복사한 한글은 자모가 나뉜 NFD 로 올 수 있어 NFC 로 맞춘다. 파일 경로는 `_local_path` 가 NFD 로도 찾는다.
-    # url_slug 같은 식별자까지 바꾸는 것은 괜찮다: velog 는 글 slug 에서 NFD 자모(U+1100–11FF)를 지워 저장해 NFD slug 인 글이
-    # 없다 (2026-10-21 실측: 비공개 테스트 글의 slug 를 NFD 'nfd-확인용' 으로 고치니 'nfd-' 로 저장됐다. velog-server
-    # escapeForUrl 도 'ㄱ-힣' 만 남긴다). 'NFD slug 글을 못 찾는다' 는 지적은 오탐이다.
-    args = [unicodedata.normalize('NFC', arg) for arg in (sys.argv[1:] if argv is None else argv)]
+    # macOS 에서 복사한 한글은 자모가 나뉜 NFD 로 올 수 있어 NFC 로 맞춘다 (`_compose_argument`). 파일 경로는 `_local_path`
+    # 가 NFD 로도 찾는다. url_slug 같은 식별자까지 바꾸는 것은 괜찮다: velog 는 글 slug 에서 NFD 자모(U+1100–11FF)를 지워
+    # 저장해 NFD slug 인 글이 없다 (2026-10-21 실측: 비공개 테스트 글의 slug 를 NFD 'nfd-확인용' 으로 고치니 'nfd-' 로
+    # 저장됐다. velog-server escapeForUrl 도 'ㄱ-힣' 만 남긴다). 'NFD slug 글을 못 찾는다' 는 지적은 오탐이다.
+    args = [_compose_argument(arg) for arg in (sys.argv[1:] if argv is None else argv)]
     cli = typer.main.get_command(app)
     if not sys.stdout.isatty():
         use_plain_help(cli)

@@ -20,6 +20,7 @@ from typer._click.globals import get_current_context
 
 from velogger.core.errors import VeloggerError
 from velogger.core.schema import is_request_validation_error
+from velogger.service.common import NOT_LOGGED_IN_HINT
 
 from typing import (
     Any,
@@ -138,7 +139,8 @@ def handle_errors() -> Generator[None, None, None]:
             429: 'RATE_LIMITED',
         }.get(status, 'UPSTREAM_ERROR')
         hint = {
-            401: '로그인이 필요하거나 세션이 만료됐습니다. velogger login 으로 다시 로그인하세요',
+            # 에이전트가 대신 로그인하지 않도록 다른 NOT_LOGGED_IN 과 같은 힌트를 준다 (AGENTS.md '꼭 지킬 것')
+            401: NOT_LOGGED_IN_HINT,
             403: '권한이 없거나 차단된 요청입니다',
             404: '대상이 없는지(내려간 글·없는 사용자), ID·주소가 맞는지 확인하세요',
             429: '요청이 너무 잦습니다. 잠시 후 다시 시도하세요',

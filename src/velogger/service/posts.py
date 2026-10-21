@@ -14,6 +14,7 @@ from velogger.api.request.posts import (
 from velogger.service.common import (
     VelogPostList,
     graphql_data,
+    post_list_of,
     summary_of_cache,
     summary_of_card,
 )
@@ -31,9 +32,7 @@ def get_trending(client: VelogClient, *, timeframe: Timeframe = 'week', limit: i
 def get_recent(client: VelogClient, *, limit: int = 20, cursor: str | None = None) -> VelogPostList:
     """최신 글 (v3). 상단에 스팸이 끼기도 하나 서버 결과를 임의로 거르지 않는다."""
     data = graphql_data(client.run_request_recent_posts(VelogRecentPostsRequestPayloadModel(limit=limit, cursor=cursor)))
-    cards = (data.recent_posts if data else None) or []
-    summaries = [summary_of_card(card) for card in cards]
-    return VelogPostList(returned=len(summaries), posts=summaries)
+    return post_list_of(data.recent_posts if data else None)
 
 
 def search_posts(
@@ -66,9 +65,7 @@ def get_user_posts(
     data = graphql_data(client.run_request_posts(
         VelogPostsRequestPayloadModel(username=username, tag=tag, cursor=cursor, limit=limit)
     ))
-    cards = (data.posts if data else None) or []
-    summaries = [summary_of_card(card) for card in cards]
-    return VelogPostList(returned=len(summaries), posts=summaries)
+    return post_list_of(data.posts if data else None)
 
 
 def get_tag_posts(client: VelogClient, tag: str, *, limit: int = 20, cursor: str | None = None) -> VelogPostList:

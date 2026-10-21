@@ -30,39 +30,45 @@ class VelogPostCardModel(ResponseModel):
 class VelogRecentPostsDataModel(ResponseModel):
     """`recentPosts` 쿼리의 data."""
 
-    recent_posts: Annotated[list[VelogPostCardModel] | None, Field(alias='recentPosts')] = None
+    recent_posts: Annotated[
+        list[VelogPostCardModel] | None,
+        Field(description='최신 글 카드')
+    ] = Field(default=None, alias='recentPosts')
 
 
 class VelogPostsDataModel(ResponseModel):
     """`posts`(한 사용자 글) 쿼리의 data. 루트 필드는 `posts`."""
 
-    posts: list[VelogPostCardModel] | None = None
+    posts: Annotated[list[VelogPostCardModel] | None, Field(description='글 카드')] = None
 
 
 class VelogSearchResultModel(ResponseModel):
     """`searchPosts` 값 (`count` + `posts`)."""
 
     count: Annotated[int | None, Field(description='검색 결과 총 개수')] = None
-    posts: list[VelogPostCardModel] | None = None
+    posts: Annotated[list[VelogPostCardModel] | None, Field(description='이번 페이지의 글 카드')] = None
 
 
 class VelogSearchPostsDataModel(ResponseModel):
     """`searchPosts` 쿼리의 data."""
 
-    search_posts: Annotated[VelogSearchResultModel | None, Field(alias='searchPosts')] = None
+    search_posts: Annotated[
+        VelogSearchResultModel | None,
+        Field(description='검색 결과')
+    ] = Field(default=None, alias='searchPosts')
 
 
 class VelogSeriesPostRefModel(ResponseModel):
     """시리즈 안 글 하나 (상세의 series_posts)."""
 
-    id: str | None = None
-    post: VelogPostCardModel | None = None
+    id: Annotated[str | None, Field(description='시리즈 칸 ID (글 ID 가 아니다)')] = None
+    post: Annotated[VelogPostCardModel | None, Field(description='그 칸의 글')] = None
 
 
 class VelogPostSeriesModel(ResponseModel):
     """글이 속한 시리즈."""
 
-    id: str | None = None
+    id: Annotated[str | None, Field(description='시리즈 ID')] = None
     name: Annotated[str | None, Field(description='시리즈 이름')] = None
     url_slug: Annotated[str | None, Field(description='시리즈 slug')] = None
     series_posts: Annotated[list[VelogSeriesPostRefModel] | None, Field(description='시리즈 안 글들')] = None
@@ -71,23 +77,23 @@ class VelogPostSeriesModel(ResponseModel):
 class VelogLinkedPostRefModel(ResponseModel):
     """이전/다음 글 참조."""
 
-    id: str | None = None
-    title: str | None = None
-    url_slug: str | None = None
-    user: VelogPostUserModel | None = None
+    id: Annotated[str | None, Field(description='글 ID')] = None
+    title: Annotated[str | None, Field(description='제목')] = None
+    url_slug: Annotated[str | None, Field(description='글 slug')] = None
+    user: Annotated[VelogPostUserModel | None, Field(description='글쓴이')] = None
 
 
 class VelogLinkedPostsModel(ResponseModel):
     """글의 이전/다음 글 (같은 시리즈 흐름)."""
 
-    previous: VelogLinkedPostRefModel | None = None
-    next: VelogLinkedPostRefModel | None = None
+    previous: Annotated[VelogLinkedPostRefModel | None, Field(description='이전 글')] = None
+    next: Annotated[VelogLinkedPostRefModel | None, Field(description='다음 글')] = None
 
 
 class VelogReadPostModel(ResponseModel):
     """글 상세. 본문(마크다운)과 메타·시리즈·이전/다음 글."""
 
-    id: str | None = None
+    id: Annotated[str | None, Field(description='글 ID')] = None
     title: Annotated[str | None, Field(description='제목')] = None
     released_at: Annotated[str | None, Field(description='발행 시각 (ISO)')] = None
     updated_at: Annotated[str | None, Field(description='수정 시각 (ISO)')] = None
@@ -109,4 +115,4 @@ class VelogReadPostModel(ResponseModel):
 class VelogReadPostDataModel(ResponseModel):
     """`post`(readPost) 쿼리의 data. 글이 없으면 `post` 가 null."""
 
-    post: VelogReadPostModel | None = None
+    post: Annotated[VelogReadPostModel | None, Field(description='글 상세. 없는 글이면 null')] = None

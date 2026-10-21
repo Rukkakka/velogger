@@ -57,7 +57,8 @@ velog 는 서버가 둘이다. 로그인·글쓰기 같은 인증 동작과 `is_
 `core/session.py`. velog 는 비밀번호가 없어 세션 쿠키가 인증 수단이다.
 
 - 세션 파일: `<config_dir>/session.json`, 권한 0600. `config_dir` 은
-  `VELOGGER_CONFIG_DIR` > `$XDG_CONFIG_HOME/velogger` > `~/.config/velogger`.
+  `VELOGGER_CONFIG_DIR` > `$XDG_CONFIG_HOME/velogger` > `~/.config/velogger` (`core/paths.py` 의 `user_dir`).
+  XDG 변수가 상대 경로면 없는 것으로 본다 (XDG 명세. 그대로 쓰면 실행한 폴더마다 세션 위치가 달라진다).
 - 쿠키 이름을 코드에 박지 않는다. velog 가 주는 Set-Cookie 를 이름 그대로 통째로 담아, velog 가 쿠키
   구성을 바꿔도 따라간다. 토큰 값은 어떤 출력에도 내보내지 않는다.
 - 요청 제한 상태(`~/.cache/velogger`)와 달리, 로그인 자격이라 cache 가 아니라 config 에 둔다.
@@ -68,7 +69,7 @@ velog 는 서버가 둘이다. 로그인·글쓰기 같은 인증 동작과 `is_
 LLM 이 명령을 연달아 실행해도 간격이 지켜진다.
 
 - 상태 파일: `<state_dir>/ratelimit/velog.json`. `state_dir` 은
-  `VELOGGER_STATE_DIR` > `$XDG_CACHE_HOME/velogger` > `~/.cache/velogger`.
+  `VELOGGER_STATE_DIR` > `$XDG_CACHE_HOME/velogger` > `~/.cache/velogger` (`user_dir`, 상대 경로 XDG 는 무시).
 - `RateLimiter.reserve()` 가 `flock` 잠금 안에서 다음 슬롯을 예약하고, 실제 대기는 잠금 밖에서 한다.
   Windows 는 `msvcrt.locking` 으로 같은 잠금을 건다.
 - 슬롯까지 `max_wait`(60초)보다 오래 기다려야 하면 `RateLimitedError(reason='budget')`.

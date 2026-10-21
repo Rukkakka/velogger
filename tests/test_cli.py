@@ -8,6 +8,7 @@ import sys
 
 import httpx
 import pytest
+import typer
 
 from velogger.api.client import VelogClient
 from velogger.cli.app import run
@@ -15,6 +16,7 @@ from velogger.cli.output import (
     emit,
     handle_errors,
 )
+from velogger.core.errors import VeloggerError
 from velogger.core.http import (
     describe_failed_attempt,
     raise_for_status,
@@ -26,6 +28,8 @@ from velogger.core.session import (
     save_session,
     session_path,
 )
+from velogger.service.auth import complete_login_with_code
+from velogger.service.common import NOT_LOGGED_IN_HINT
 
 
 def _stderr_json(capsys: pytest.CaptureFixture[str]) -> dict:
@@ -80,6 +84,21 @@ def test_write_without_session_is_not_logged_in_without_network(capsys: pytest.C
     assert 'velogger login' in error['hint']
 
 
+def test_http_401_gets_the_same_user_must_log_in_hint(capsys: pytest.CaptureFixture[str]) -> None:
+    """서비스가 바꾸지 않은 HTTP 401 도 '사용자가 직접 로그인' 힌트를 준다 (에이전트가 대신 로그인하지 않게).
+
+    2026-10-21 확인: 잘못된 세션으로 recent·feed·drafts·comments·stats·upload 를 불러도 401 이 그대로 나오는 경로는
+    없었다. 앞으로 생길 경로의 힌트가 달라지지 않게 지킨다.
+    """
+    request = httpx.Request('POST', 'https://v3.velog.io/graphql')
+    with pytest.raises(typer.Exit), handle_errors():
+        raise_for_status(httpx.Response(401, request=request))
+
+    error = _stderr_json(capsys)['error']
+    assert error['code'] == 'NOT_LOGGED_IN'
+    assert error['hint'] == NOT_LOGGED_IN_HINT
+
+
 # --- 자격증명 취급 ---
 
 def test_session_file_is_user_only_and_token_never_printed(capsys: pytest.CaptureFixture[str]) -> None:
@@ -132,6 +151,50 @@ def test_login_code_in_url_path_is_not_printed_in_request_log(caplog: pytest.Log
 
     assert '/auth/code/<redacted>' in caplog.text
     assert code not in caplog.text
+
+
+def _mock_client(handler) -> VelogClient:
+    client = VelogClient()
+    client.__dict__['_client'] = httpx.Client(base_url=client.base_url, transport=httpx.MockTransport(handler))
+    return client
+
+
+def test_login_code_keeps_the_session_when_the_check_after_it_fails() -> None:
+    """code 는 교환 응답으로 다 쓰인다. 뒤이은 `auth` 확인이 실패해도 받은 쿠키는 저장해야 한다.
+
+    버리면 같은 링크는 403 TOKEN_ALREADY_USED 라 메일을 새로 받아야 한다 (velog-server `auth/code` 는 성공하면 code 를
+    쓴 것으로 표시한다). 확인 요청이 마침 실패해야 생겨 실제 API 로 재현할 수 없어 가짜 응답으로 본다.
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        if '/auth/code/' in request.url.path:
+            return httpx.Response(
+                200,
+                json={'id': 'u1', 'username': 'me', 'tokens': {'access_token': 'fresh', 'refresh_token': 'r'}},
+                headers=[('set-cookie', 'access_token=fresh; Domain=.velog.io; Path=/')],
+            )
+        return httpx.Response(200, json={'errors': [{'message': 'Internal server error'}]})
+
+    result = complete_login_with_code(_mock_client(handler), 'abc123')
+
+    assert [cookie.value for cookie in load_session().cookies] == ['fresh']
+    assert result.logged_in is True
+    assert result.username == 'me'
+
+
+def test_signup_code_is_reported_as_signup_not_as_expired() -> None:
+    """계정이 없는 이메일의 code 는 쿠키 없이 `register_token` 만 온다 (velog-server `auth/code`, 소스 기준).
+
+    '만료됐을 수 있다' 고 하면 새 링크를 받아도 또 가입 링크가 와 되풀이된다. 가입 메일을 실제로 보내야 재현돼 가짜 응답으로 본다.
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={'email': 'new@example.com', 'register_token': 'signup-token'})
+
+    with pytest.raises(VeloggerError) as caught:
+        complete_login_with_code(_mock_client(handler), 'abc123')
+
+    assert caught.value.code == 'LOGIN_FAILED'
+    assert caught.value.details == {'registered': False}
+    assert load_session().is_empty()
 
 
 def test_logout_removes_session(capsys: pytest.CaptureFixture[str]) -> None:

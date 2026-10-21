@@ -145,7 +145,7 @@ velog 를 다룰 때는 velogger CLI 를 쓴다. 처음 쓰기 전에 `velogger 
 | --- | --- |
 | `VELOGGER_CONFIG_DIR` | 로그인 세션 파일(`session.json`, 사용자 전용 권한 0600)을 둘 디렉터리. 기본은 `~/.config/velogger` |
 | `VELOGGER_STATE_DIR` | 요청 제한 상태 파일을 둘 디렉터리. 기본은 `~/.cache/velogger`. 기본 위치에 쓸 수 없는 환경(샌드박스 등)이면 쓸 수 있는 폴더로 바꾼다 |
-| `XDG_CONFIG_HOME` · `XDG_CACHE_HOME` | 설정해 두었으면 그 아래 `velogger` 를 쓴다 (`VELOGGER_CONFIG_DIR`·`VELOGGER_STATE_DIR` 이 우선) |
+| `XDG_CONFIG_HOME` · `XDG_CACHE_HOME` | 절대 경로로 설정해 두었으면 그 아래 `velogger` 를 쓴다 (`VELOGGER_CONFIG_DIR`·`VELOGGER_STATE_DIR` 이 우선) |
 | `PYTHONUTF8` | Windows 에서 `1` 로 설정한다 (아래) |
 
 ### Windows 에서 쓸 때

@@ -26,6 +26,10 @@ class VelogGraphQLErrorModel(ResponseModel):
         dict[str, Any] | None,
         Field(description="추가 정보 (예: {'code': 'UNAUTHENTICATED'})")
     ] = None
+    path: Annotated[
+        list[str | int] | None,
+        Field(description="에러가 난 응답 필드 경로 (예: ['post', 'series', 'series_posts'])")
+    ] = None
 
 
 class VelogProfileModel(ResponseModel):
@@ -54,5 +58,8 @@ class VelogGraphQLResponse(ResponseModel, Generic[_Data]):
     service 가 `errors` 를 판정한다 (UNAUTHENTICATED → 로그인 안 됨, 그 밖은 UPSTREAM_ERROR).
     """
 
-    data: _Data | None = None
-    errors: list[VelogGraphQLErrorModel] | None = None
+    data: Annotated[_Data | None, Field(description='쿼리별 데이터')] = None
+    errors: Annotated[
+        list[VelogGraphQLErrorModel] | None,
+        Field(description='HTTP 200 안에 담긴 실패 (인증 실패·잘못된 입력 등)')
+    ] = None

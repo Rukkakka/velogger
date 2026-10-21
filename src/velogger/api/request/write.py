@@ -1,6 +1,9 @@
 from pydantic import Field
 
-from velogger.core.schema import RequestModel
+from velogger.core.schema import (
+    NonBlankStr,
+    RequestModel,
+)
 
 from typing import (
     Annotated,
@@ -52,7 +55,7 @@ class VelogWriteCommentRequestPayloadModel(RequestModel):
     """v2 `writeComment` mutation 변수."""
 
     post_id: Annotated[str, Field(description='댓글을 달 글 ID')]
-    text: Annotated[str, Field(min_length=1, description='댓글 내용')]
+    text: Annotated[NonBlankStr, Field(description='댓글 내용')]
     comment_id: Annotated[str | None, Field(description='대댓글이면 부모 댓글 ID')] = None
 
 
@@ -60,18 +63,19 @@ class VelogEditCommentRequestPayloadModel(RequestModel):
     """v2 `editComment` mutation 변수.
 
     velog 는 빈 text 도 그대로 저장해 댓글이 비므로(velog-server `editComment` 리졸버는 검사 없이 `comment.text = text`)
-    여기서 막는다. `comment` 의 `min_length=1` 과 같다.
+    여기서 막는다. 공백만 있는 text 도 빈 댓글로 보여 함께 막는다 (`NonBlankStr`, `writeComment` 와 같다).
     """
 
     id: Annotated[str, Field(description='고칠 댓글 ID')]
-    text: Annotated[str, Field(min_length=1, description='새 댓글 내용')]
+    text: Annotated[NonBlankStr, Field(description='새 댓글 내용')]
 
 
 class VelogCreateSeriesRequestPayloadModel(RequestModel):
     """v2 `createSeries` mutation 변수.
 
     velog 는 빈 이름도 받아 이름 없는 시리즈를 만든다 (velog-server `createSeries` 리졸버는 이름을 검사하지 않는다).
+    공백만 있는 이름·slug 도 같아 함께 막는다 (`NonBlankStr`).
     """
 
-    name: Annotated[str, Field(min_length=1, description='시리즈 이름')]
-    url_slug: Annotated[str, Field(min_length=1, description='시리즈 slug')]
+    name: Annotated[NonBlankStr, Field(description='시리즈 이름')]
+    url_slug: Annotated[NonBlankStr, Field(description='시리즈 slug')]

@@ -8,8 +8,12 @@ from httpx import (
     Client,
     Cookies,
     Response,
+    codes,
 )
-from pydantic import Field
+from pydantic import (
+    BaseModel,
+    Field,
+)
 from tenacity import (
     retry,
     retry_if_exception,
@@ -94,13 +98,18 @@ from velogger.core.http import (
     should_retry_non_idempotent,
     wait_retry_after,
 )
+from velogger.core.schema import RequestModel
 from velogger.core.session import StoredCookie
 
 from typing import (
     Annotated,
     Any,
     ClassVar,
+    TypeVar,
 )
+
+
+_Response = TypeVar('_Response', bound=BaseModel)
 
 
 # 재시도를 포함한 요청 횟수 (조회·쓰기 재시도 공통)
@@ -280,6 +289,8 @@ query ReloadComments($id: ID!) {
 }
 """
 
+# velog 는 대댓글에 다시 대댓글을 달 수 있고 level 2 까지다 (velog-server `writeComment` 가 level 3 부터 'Maximum comment
+# level is 2' 로 막는다). `replies` 는 Comment 의 필드라 한 번 더 중첩해 한 요청으로 2단계까지 받는다.
 COMMENT_REPLIES_QUERY: str = """
 query ReloadReplies($id: ID!) {
   comment(comment_id: $id) {
@@ -287,6 +298,10 @@ query ReloadReplies($id: ID!) {
     replies {
       id text replies_count level created_at deleted
       user { id username profile { thumbnail display_name } }
+      replies {
+        id text replies_count level created_at deleted
+        user { id username profile { thumbnail display_name } }
+      }
     }
   }
 }
@@ -364,6 +379,18 @@ query Posts($username: String, $temp_only: Boolean, $limit: Int) {
   }
 }
 """
+
+
+def _has_partial_data(response: Response) -> bool:
+    """본문이 `errors` 와 함께 값이 하나라도 든 `data` 를 담은 GraphQL 봉투인지 (일부 필드만 실패한 응답)."""
+    try:
+        body = response.json()
+    except ValueError:
+        return False
+    if not isinstance(body, dict) or not body.get('errors'):
+        return False
+    data = body.get('data')
+    return isinstance(data, dict) and any(value is not None for value in data.values())
 
 
 class VelogClient(BaseHTTPClient):
@@ -541,10 +568,7 @@ class VelogClient(BaseHTTPClient):
 
         요청 제한이 켜져 있으면 429 는 재시도 없이 `RateLimitedError` 로 끝난다.
         """
-        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
-        return VelogGraphQLResponse[VelogRecentPostsDataModel].model_validate(
-            self._post_graphql_v3(RECENT_POSTS_QUERY, variables).json()
-        )
+        return self._query_v3(RECENT_POSTS_QUERY, payload, VelogGraphQLResponse[VelogRecentPostsDataModel])
 
     @velog_retry
     def run_request_search_posts(
@@ -552,10 +576,7 @@ class VelogClient(BaseHTTPClient):
         payload: VelogSearchPostsRequestPayloadModel
     ) -> VelogGraphQLResponse[VelogSearchPostsDataModel]:
         """Search posts via `POST v3.velog.io/graphql` (`searchPosts`)."""
-        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
-        return VelogGraphQLResponse[VelogSearchPostsDataModel].model_validate(
-            self._post_graphql_v3(SEARCH_POSTS_QUERY, variables).json()
-        )
+        return self._query_v3(SEARCH_POSTS_QUERY, payload, VelogGraphQLResponse[VelogSearchPostsDataModel])
 
     @velog_retry
     def run_request_posts(
@@ -563,20 +584,22 @@ class VelogClient(BaseHTTPClient):
         payload: VelogPostsRequestPayloadModel
     ) -> VelogGraphQLResponse[VelogPostsDataModel]:
         """Fetch one user's posts via `POST v3.velog.io/graphql` (`posts`)."""
-        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
-        return VelogGraphQLResponse[VelogPostsDataModel].model_validate(
-            self._post_graphql_v3(POSTS_QUERY, variables).json()
-        )
+        return self._query_v3(POSTS_QUERY, payload, VelogGraphQLResponse[VelogPostsDataModel])
 
     @velog_retry
     def run_request_read_post(
         self,
         payload: VelogReadPostRequestPayloadModel
     ) -> VelogGraphQLResponse[VelogReadPostDataModel]:
-        """Fetch one post with body via `POST v3.velog.io/graphql` (`readPost`)."""
-        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
-        return VelogGraphQLResponse[VelogReadPostDataModel].model_validate(
-            self._post_graphql_v3(READ_POST_QUERY, variables).json()
+        """Fetch one post with body via `POST v3.velog.io/graphql` (`readPost`).
+
+        로그인한 본인이 시리즈에 든 자기 글을 읽으면 v3 가 HTTP 500 을 주지만, 본문은 글 데이터(`series_posts` 만 null)와
+        `errors` 가 든 GraphQL 봉투다 (2026-10-21 실측: prisma `seriesPost.findMany()` 의 `orderBy` 오류. 익명이거나 남의
+        글이면 200). 그 응답은 에러로 올리지 않고 봉투로 돌려줘 service 가 판정한다 (`keep_partial`). 다시 보내도 같아
+        재시도하지 않는다.
+        """
+        return self._query_v3(
+            READ_POST_QUERY, payload, VelogGraphQLResponse[VelogReadPostDataModel], keep_partial=True,
         )
 
     @velog_retry
@@ -603,10 +626,7 @@ class VelogClient(BaseHTTPClient):
         `user` 를 루트로 쓰는 쿼리가 둘이라(`run_request_user` 는 프로필·시리즈·태그까지) 뜻으로 구분해 `user_id` 로 부른다.
         없는 사용자면 `user` 가 null 이다.
         """
-        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
-        return VelogGraphQLResponse[VelogUserIdDataModel].model_validate(
-            self._post_graphql_v3(USER_ID_QUERY, variables).json()
-        )
+        return self._query_v3(USER_ID_QUERY, payload, VelogGraphQLResponse[VelogUserIdDataModel])
 
     @velog_retry
     def run_request_tag(self, name: str) -> VelogGraphQLResponse[VelogTagDataModel]:
@@ -651,13 +671,31 @@ class VelogClient(BaseHTTPClient):
 
     # ------------------------------------------------------------ 쓰기·본인 조회 (v2, 세션 필요)
 
-    def _post_graphql_v3(self, query: str, variables: dict[str, Any]) -> Response:
-        """공개 조회용 v3 GraphQL. 인증이 필요한 조회(feed 등)는 세션 쿠키로 인증된다."""
+    def _post_graphql_v3(self, query: str, variables: dict[str, Any], *, keep_partial: bool = False) -> Response:
+        """공개 조회용 v3 GraphQL. 인증이 필요한 조회(feed 등)는 세션 쿠키로 인증된다.
+
+        `keep_partial` 이면 HTTP 500 이라도 본문이 데이터가 든 GraphQL 봉투(일부 필드만 실패)일 때 에러로 올리지 않는다.
+        """
         response = self._client.post(url=self.graphql_v3_url, json=self._graphql_body(query, variables))
         if os.environ.get('VELOGGER_DEBUG'):
             sys.stderr.write(f'[VELOGGER_DEBUG] v3 <- {response.status_code} {response.text[:DEBUG_PREVIEW_V3]}\n')
+        if keep_partial and response.status_code == codes.INTERNAL_SERVER_ERROR and _has_partial_data(response):
+            return response
         raise_for_status(response=response)
         return response
+
+    def _query_v3(
+        self,
+        query: str,
+        payload: RequestModel,
+        response_model: type[_Response],
+        *,
+        keep_partial: bool = False,
+    ) -> _Response:
+        """`input` 하나만 받는 v3 GraphQL 조회. 응답 봉투를 `response_model` 로 검증한다 (재시도는 부르는 쪽 데코레이터)."""
+        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
+        response = self._post_graphql_v3(query, variables, keep_partial=keep_partial)
+        return response_model.model_validate(response.json())
 
     def _post_graphql_v2(self, query: str, variables: dict[str, Any]) -> Response:
         if os.environ.get('VELOGGER_DEBUG'):
@@ -750,7 +788,7 @@ class VelogClient(BaseHTTPClient):
 
     @velog_retry
     def run_request_comment_replies(self, comment_id: str) -> VelogGraphQLResponse[VelogCommentRepliesDataModel]:
-        """Fetch one comment's replies via `POST v2.velog.io/graphql` (`ReloadReplies`)."""
+        """Fetch one comment's replies (and their replies, down to level 2) via `POST v2.velog.io/graphql` (`ReloadReplies`)."""
         return VelogGraphQLResponse[VelogCommentRepliesDataModel].model_validate(
             self._post_graphql_v2(COMMENT_REPLIES_QUERY, {'id': comment_id}).json()
         )
@@ -786,10 +824,7 @@ class VelogClient(BaseHTTPClient):
         payload: VelogFeedPostsRequestPayloadModel
     ) -> VelogGraphQLResponse[VelogFeedPostsDataModel]:
         """Fetch the logged-in user's feed via `POST v3.velog.io/graphql` (`feedPosts`). 세션 필요."""
-        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
-        return VelogGraphQLResponse[VelogFeedPostsDataModel].model_validate(
-            self._post_graphql_v3(FEED_POSTS_QUERY, variables).json()
-        )
+        return self._query_v3(FEED_POSTS_QUERY, payload, VelogGraphQLResponse[VelogFeedPostsDataModel])
 
     @velog_retry
     def run_request_followers(
@@ -797,10 +832,7 @@ class VelogClient(BaseHTTPClient):
         payload: VelogFollowListRequestPayloadModel
     ) -> VelogGraphQLResponse[VelogFollowersDataModel]:
         """Fetch a user's followers via `POST v3.velog.io/graphql` (`getFollowers`)."""
-        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
-        return VelogGraphQLResponse[VelogFollowersDataModel].model_validate(
-            self._post_graphql_v3(FOLLOWERS_QUERY, variables).json()
-        )
+        return self._query_v3(FOLLOWERS_QUERY, payload, VelogGraphQLResponse[VelogFollowersDataModel])
 
     @velog_retry
     def run_request_followings(
@@ -808,10 +840,7 @@ class VelogClient(BaseHTTPClient):
         payload: VelogFollowListRequestPayloadModel
     ) -> VelogGraphQLResponse[VelogFollowingsDataModel]:
         """Fetch who a user follows via `POST v3.velog.io/graphql` (`getFollowings`)."""
-        variables = {'input': payload.model_dump(by_alias=True, exclude_none=True)}
-        return VelogGraphQLResponse[VelogFollowingsDataModel].model_validate(
-            self._post_graphql_v3(FOLLOWINGS_QUERY, variables).json()
-        )
+        return self._query_v3(FOLLOWINGS_QUERY, payload, VelogGraphQLResponse[VelogFollowingsDataModel])
 
     @velog_write_retry
     def run_request_edit_comment(

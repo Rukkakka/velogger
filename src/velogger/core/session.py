@@ -23,6 +23,7 @@ from pydantic import (
 )
 
 from velogger.core.errors import VeloggerError
+from velogger.core.paths import user_dir
 
 from typing import (
     Annotated,
@@ -67,12 +68,7 @@ def config_dir() -> Path:
 
     요청 제한 상태(`~/.cache/velogger`)와 달리 로그인 자격이라 cache 가 아니라 config 에 둔다.
     """
-    override = os.environ.get('VELOGGER_CONFIG_DIR')
-    if override:
-        return Path(override)
-    config_home = os.environ.get('XDG_CONFIG_HOME')
-    base = Path(config_home) if config_home else Path.home() / '.config'
-    return base / 'velogger'
+    return user_dir('VELOGGER_CONFIG_DIR', 'XDG_CONFIG_HOME', '.config')
 
 
 def session_path() -> Path:

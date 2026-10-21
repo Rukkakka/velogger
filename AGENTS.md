@@ -30,6 +30,7 @@ jibsa·baenggipyo 는 "로그인 없는 기능만" 이 첫 규칙이지만, velo
 | `core/http.py` | `BaseHTTPClient` — httpx 클라이언트 수명주기, 재시도 술어, `raise_for_status` |
 | `core/ratelimit.py` | 프로세스 간 공유 요청 제한 (`RateLimiter`, `RateLimitedError`), 상태 디렉터리(`state_dir`) |
 | `core/session.py` | 로그인 세션(쿠키) 저장·로드 (`Session`, `load_session`, `save_session`, 0600) |
+| `core/paths.py` | 세션·상태 폴더 위치 (`user_dir`: 환경 변수 > XDG > 홈 기본값) |
 | `core/errors.py` | `VeloggerError` — CLI 가 `{"error": {...}}` 로 내보내는 에러 |
 | `core/schema.py` | `RequestModel` (`extra='forbid'`) / `ResponseModel` (`extra='allow'`), 요청 검증 오류 판정 |
 | `api/` | 아래층: velog API 를 그대로 옮긴 것. `client.py`(`VelogClient` + `run_request_*`) · `request/` · `response/`. request·response 는 service 와 같은 이름의 기능별 모듈 ([모듈 구성](references/provider-conventions.md#모듈-구성)) |

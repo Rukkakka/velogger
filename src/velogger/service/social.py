@@ -15,13 +15,17 @@ from velogger.api.request.social import (
     VelogFollowListRequestPayloadModel,
     VelogSeriesRequestPayloadModel,
 )
-from velogger.api.response.social import VelogCommentModel
+from velogger.api.response.social import (
+    VelogCommentModel,
+    VelogFollowUserModel,
+)
 from velogger.core.errors import VeloggerError
 from velogger.service.common import (
     VELOG_BASE,
     VelogPostList,
     VelogPostSummary,
     graphql_data,
+    post_list_of,
     post_url,
     require_auth,
     series_url,
@@ -49,7 +53,10 @@ class VelogComment(BaseModel):
     created_at: Annotated[str | None, Field(description='작성 시각 (ISO)')] = None
     replies_count: Annotated[int | None, Field(description='대댓글 수')] = None
     deleted: Annotated[bool | None, Field(description='삭제된 댓글인지')] = None
-    replies: Annotated[list['VelogComment'] | None, Field(description='대댓글 (--replies 일 때만 키가 있다)')] = None
+    replies: Annotated[
+        list['VelogComment'] | None,
+        Field(description='대댓글 (--replies 일 때만 키가 있다). 대댓글의 대댓글도 같은 모양으로 담는다 (velog 는 2단계까지)')
+    ] = None
 
     @model_serializer(mode='wrap')
     def _drop_unrequested_replies(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
@@ -67,7 +74,7 @@ class VelogCommentList(BaseModel):
     post_id: Annotated[str | None, Field(description='글 ID')] = None
     comments_count: Annotated[int | None, Field(description='velog 가 세는 전체 댓글 수 (대댓글 포함)')] = None
     returned: Annotated[int, Field(description='이번에 반환한 최상위 댓글 수')]
-    comments: list[VelogComment]
+    comments: Annotated[list[VelogComment], Field(description='최상위 댓글')]
 
 
 class VelogSeriesDetail(BaseModel):
@@ -106,13 +113,14 @@ class VelogFollowList(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     returned: Annotated[int, Field(description='반환한 사람 수')]
-    users: list[VelogFollowUser]
+    users: Annotated[list[VelogFollowUser], Field(description='사람 목록')]
 
 
-def _comment_of(model: VelogCommentModel) -> VelogComment:
+def _comment_of(model: VelogCommentModel, *, with_replies: bool = False) -> VelogComment:
+    """댓글 하나. `with_replies` 면 `model.replies` 를 대댓글로, 그 대댓글의 대댓글까지 같은 모양으로 붙인다."""
     username = model.user.username if model.user else None
     display_name = model.user.profile.display_name if model.user and model.user.profile else None
-    return VelogComment(
+    comment = VelogComment(
         id=model.id,
         username=username,
         display_name=display_name,
@@ -121,12 +129,22 @@ def _comment_of(model: VelogCommentModel) -> VelogComment:
         replies_count=model.replies_count,
         deleted=model.deleted,
     )
+    if with_replies:
+        # 대댓글 수가 0 이면 비어 있음([]). 있는데 velog 가 묶음을 주지 않았으면 모름(null).
+        # 대입해야 model_fields_set 에 들어가 키가 나온다
+        comment.replies = (
+            [] if not model.replies_count
+            else None if model.replies is None
+            else [_comment_of(reply, with_replies=True) for reply in model.replies]
+        )
+    return comment
 
 
 def get_comments(client: VelogClient, post_id: str, *, with_replies: bool = False) -> VelogCommentList:
     """글의 댓글을 읽는다 (v2 — 작성자가 채워지는 쪽).
 
-    `with_replies` 면 대댓글이 있는 댓글마다 한 번씩 더 조회한다 (요청이 댓글 수만큼 늘어난다).
+    `with_replies` 면 대댓글이 있는 최상위 댓글마다 한 번씩 더 조회한다 (요청이 댓글 수만큼 늘어난다). 한 번의 조회로
+    대댓글의 대댓글(level 2, velog 의 최대 단계)까지 받는다.
 
     Raises:
         VeloggerError: 글이 없을 때 (`NOT_FOUND`).
@@ -141,16 +159,11 @@ def get_comments(client: VelogClient, post_id: str, *, with_replies: bool = Fals
         )
     comments: list[VelogComment] = []
     for model in post.comments or []:
-        comment = _comment_of(model)
-        if with_replies:
-            # 대댓글 수가 0 이면 비어 있음([]). 받으러 갔는데 velog 가 묶음을 주지 않으면 모름(null).
-            replies: list[VelogComment] | None = []
-            if (model.replies_count or 0) > 0 and model.id:
-                reply_data = graphql_data(client.run_request_comment_replies(model.id))
-                found = reply_data.comment if reply_data else None
-                replies = None if found is None or found.replies is None else [_comment_of(reply) for reply in found.replies]
-            comment.replies = replies  # 대입해야 model_fields_set 에 들어가 키가 나온다
-        comments.append(comment)
+        if with_replies and model.replies_count and model.id:
+            reply_data = graphql_data(client.run_request_comment_replies(model.id))
+            found = reply_data.comment if reply_data else None
+            model = model.model_copy(update={'replies': found.replies if found else None})
+        comments.append(_comment_of(model, with_replies=with_replies))
     return VelogCommentList(
         post_id=post.id or post_id,
         comments_count=post.comments_count,
@@ -206,9 +219,7 @@ def get_reading_list(client: VelogClient, *, list_type: ReadingListType = 'LIKED
     준다 (2026-10-20 실측). 그래서 앞에 `require_auth` 를 두지 않는다.
     """
     data = graphql_data(client.run_request_reading_list(list_type, limit))
-    cards = (data.reading_list if data else None) or []
-    summaries = [summary_of_card(card) for card in cards]
-    return VelogPostList(returned=len(summaries), posts=summaries)
+    return post_list_of(data.reading_list if data else None)
 
 
 def get_feed(client: VelogClient, *, limit: int = 20) -> VelogPostList:
@@ -220,37 +231,36 @@ def get_feed(client: VelogClient, *, limit: int = 20) -> VelogPostList:
     """
     require_auth(client)
     data = graphql_data(client.run_request_feed_posts(VelogFeedPostsRequestPayloadModel(limit=limit)))
-    cards = (data.feed_posts if data else None) or []
-    summaries = [summary_of_card(card) for card in cards]
-    return VelogPostList(returned=len(summaries), posts=summaries)
+    return post_list_of(data.feed_posts if data else None)
 
 
-def _follow_user_of(model: object) -> VelogFollowUser:
-    username = getattr(model, 'username', None)
-    profile = getattr(model, 'profile', None)
+def _follow_user_of(model: VelogFollowUserModel) -> VelogFollowUser:
+    """팔로워·팔로잉 한 명. `user_id` 는 `userId` 만 쓴다 (`id` 는 팔로우 관계 ID 라 모르면 null 로 둔다)."""
+    profile = model.profile
     return VelogFollowUser(
-        user_id=getattr(model, 'user_id', None) or getattr(model, 'id', None),
-        username=username,
+        user_id=model.user_id,
+        username=model.username,
         display_name=profile.display_name if profile else None,
         short_bio=profile.short_bio if profile else None,
-        url=f'{VELOG_BASE}/@{username}' if username else None,
-        is_followed=getattr(model, 'is_followed', None),
+        url=f'{VELOG_BASE}/@{model.username}' if model.username else None,
+        is_followed=model.is_followed,
     )
+
+
+def _follow_list_of(models: list[VelogFollowUserModel] | None) -> VelogFollowList:
+    users = [_follow_user_of(model) for model in models or []]
+    return VelogFollowList(returned=len(users), users=users)
 
 
 def get_followers(client: VelogClient, username: str, *, limit: int = 20) -> VelogFollowList:
     """그 사용자를 팔로우하는 사람들."""
-    data = graphql_data(client.run_request_followers(
-        VelogFollowListRequestPayloadModel(username=username, limit=limit)
-    ))
-    users = [_follow_user_of(item) for item in (data.followers if data else None) or []]
-    return VelogFollowList(returned=len(users), users=users)
+    payload = VelogFollowListRequestPayloadModel(username=username, limit=limit)
+    data = graphql_data(client.run_request_followers(payload))
+    return _follow_list_of(data.followers if data else None)
 
 
 def get_followings(client: VelogClient, username: str, *, limit: int = 20) -> VelogFollowList:
     """그 사용자가 팔로우하는 사람들."""
-    data = graphql_data(client.run_request_followings(
-        VelogFollowListRequestPayloadModel(username=username, limit=limit)
-    ))
-    users = [_follow_user_of(item) for item in (data.followings if data else None) or []]
-    return VelogFollowList(returned=len(users), users=users)
+    payload = VelogFollowListRequestPayloadModel(username=username, limit=limit)
+    data = graphql_data(client.run_request_followings(payload))
+    return _follow_list_of(data.followings if data else None)

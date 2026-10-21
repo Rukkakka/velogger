@@ -1,6 +1,5 @@
 import asyncio
 import json
-import os
 import sys
 import time
 from collections.abc import (
@@ -23,6 +22,7 @@ from pydantic import (
 )
 
 from velogger.core.errors import VeloggerError
+from velogger.core.paths import user_dir
 
 from typing import (
     IO,
@@ -156,12 +156,7 @@ def _clean_state(data: Any) -> dict[str, Any]:
 
 def state_dir() -> Path:
     """상태 파일 디렉터리. `VELOGGER_STATE_DIR` > `$XDG_CACHE_HOME/velogger` > `~/.cache/velogger`."""
-    override = os.environ.get('VELOGGER_STATE_DIR')
-    if override:
-        return Path(override)
-    cache_home = os.environ.get('XDG_CACHE_HOME')
-    base = Path(cache_home) if cache_home else Path.home() / '.cache'
-    return base / 'velogger'
+    return user_dir('VELOGGER_STATE_DIR', 'XDG_CACHE_HOME', '.cache')
 
 
 def _lock_file(file: IO[str]) -> None:

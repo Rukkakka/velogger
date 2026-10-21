@@ -56,6 +56,16 @@ velog 는 비밀번호가 없다. 흐름:
 
    본문이 `TOKEN_ALREADY_USED` 가 아닌 403(앞단 차단 페이지 등)은 `FORBIDDEN` 으로 둔다. 예전 문서는 "다 쓴 code 도 404"
    라 했는데 틀렸다 (실측 403). 410 은 쓰지 않은 채 24시간 지난 링크가 있어야 확인할 수 있어 아직 실측하지 않았다.
+
+   성공(200)은 둘이다 (소스 기준, 가입 메일을 실제로 보내야 해 실측하지 않았다). 가입된 이메일이면 쿠키를 Set-Cookie 로
+   주고 본문에 사용자(`...user`, `profile`, `tokens`)를 담으며, **이때 code 를 쓴 것으로 표시한다**(`emailAuth.logged`).
+   계정이 없는 이메일이면 쿠키 없이 `{email, register_token}` 만 주고 code 는 쓰지 않는다. 그래서 service 는
+   - 쿠키를 받자마자 `session.json` 에 저장한 뒤 `auth` 로 확인한다. 확인 요청이 실패했다고 쿠키를 버리면 같은 링크는 403
+     이라 메일을 새로 받아야 한다. 확인만 실패하면(5xx·네트워크·요청 제한) 로그인 응답 본문의 `username`·`is_trusted` 로
+     결과를 낸다 (`is_trusted` 는 소스의 User 엔티티에 없어 `null` 일 수 있다). 본문의 토큰은 모델에 담지 않는다
+     (`VelogCodeLoginResponseModel` 은 `extra='ignore'`).
+   - 쿠키 없이 `register_token` 이 오면 '만료됐을 수 있다' 가 아니라 가입 링크라고 `LOGIN_FAILED`(`details.registered:
+     false`)로 알린다. 새 링크를 받아도 또 가입 링크가 와 되풀이되기 때문이다.
    - code 는 **URL 경로**에 실려 쿼리를 지워서는 가려지지 않는다. `core/http.py` 의 `SENSITIVE_PATH_PATTERN` 이
      에러 메시지·재시도 로그에서 `/auth/code/<redacted>` 로 가린다 (2026-10-20 확인: 가리기 전에는 에러 JSON 에 찍혔다).
      `--verbose` 가 켜는 httpx 요청 로그도 `SensitivePathLogFilter` 가 가린다 (같은 날 재현: 502 재시도마다 code 가 한 줄씩 찍혔다).
@@ -89,6 +99,14 @@ service 는 v3 GraphQL·캐시 응답을 공통 요약 모델(`VelogPostSummary`
   소스마다 일부가 빠진다 (실측: `searchPosts` 는 `updated_at`·`likes` 를 안 준다).
 - **글 본문**은 v3 `readPost(username, url_slug)` → `body`(마크다운, 실측 수만 자), `series`, `linked_posts`
   (이전/다음). 글이 없으면 `post` 가 null → `NOT_FOUND`. (실측: `series.series_posts` 가 null 로 오기도 한다.)
+  ⚠️ **로그인한 본인이 시리즈에 든 자기 글을 읽으면 v3 가 HTTP 500 을 준다** (2026-10-21 실측: 본인 계정의
+  공개 시리즈 글을 세션을 실어 부르면 500, 익명이면 200. 남의 시리즈 글은 로그인해도 200). 본문은 `errors` 의 prisma
+  `seriesPost.findMany()` `orderBy` 검증 오류(`path: ["post", "series", "series_posts"]`)이고 `data.post` 는
+  `series_posts: null` 로 함께 오는 정상 GraphQL 봉투다. velog 쪽 버그라, client 는 이 500 을 에러로 올리지 않고 봉투를
+  돌려주고(`run_request_read_post` 의 `keep_partial`, 다시 보내도 같아 재시도하지 않는다), service 는 `errors` 가 모두 그
+  경로일 때만 받은 글을 `series.posts: null` + `notes` 로 낸다 (`read_post`). 그 밖의 errors 는 그대로 판정한다. 고치기 전에는
+  내 시리즈 글을 로그인한 채로 아예 읽을 수 없었다 (`UPSTREAM_ERROR`). 같은 날 실측으로 익명·남의 글에서도 v3 는
+  `series_posts`·`linked_posts` 를 null 로 줘, 결과는 `notes` 한 줄만 다르다.
 - **user** 는 v3 `user` + `userTags` 를 **한 쿼리의 두 변수**(`$input: GetUserInput!`, `$tagsInput: UserTagsInput!`)로
   받아 요청을 한 번에 끝낸다. `profile.profile_links` 는 빈 값을 걸러 `links` 로 낸다. `userTags.tags` 는 사용자가
   쓴 태그를 모두 줘 길 수 있다 (teo 실측 약 160개). 글 목록 자체는 `posts` 명령으로 받는다.
@@ -109,14 +127,18 @@ service 는 v3 GraphQL·캐시 응답을 공통 요약 모델(`VelogPostSummary`
 
 `service/write.py`. 모두 세션 쿠키로 보내고, 로그인 안 됨은 200 안의 `errors`(UNAUTHENTICATED)로 와
 `graphql_data()` 가 `NOT_LOGGED_IN` 으로 바꾼다. CLI 는 세션이 아예 없으면 네트워크 없이 먼저 막는다
-(`_authed_client`). 각 쓰기 뒤 CLI 가 **결과를 먼저 내보낸 다음** 갱신된 쿠키를 다시 저장한다(`_emit_and_persist` →
-`_persist`, 토큰 회전). 세션 쿠키를 실은 조회(`whoami`·`post`·`comments` 등)도 같다 — velog 는 access_token 이 30분 아래로
+(`_session_client(login_required=True)`). 명령이 끝나면 CLI 가 **결과를 먼저 내보낸 다음** 갱신된 쿠키를 다시 저장한다
+(`_session_client` 를 나갈 때 `_persist`, 토큰 회전). 서비스가 에러를 냈거나 결과를 쓰다 stdout 이 닫혀도(`| head`) 저장한다
+— `require_auth` 가 이미 토큰을 갱신했을 수 있다. 세션 쿠키를 실은 조회(`whoami`·`post`·`comments` 등)도 같다 — velog 는 access_token 이 30분 아래로
 남은 요청이면 조회에도 새 토큰을, refresh_token 이 23일 아래로 남으면 새 refresh_token 도 Set-Cookie 로 준다 (velog-server
 `consumeUser`·`refreshUserToken`. 2026-10-21 실측: access_token 을 뺀 세션으로 `comments`·`whoami` 를 부르니 두 쿠키가
 와 저장됐다). 예전에는 조회 뒤에 저장하지 않아, 조회만 쓰는 사용자는 로그인 30일 뒤 refresh_token 이 만료됐다. 세션 없이
 보낸 조회는 저장하지 않는다. 저장이 실패해도(샌드박스·읽기 전용 폴더) 명령은 성공으로 끝나고 `--verbose` 로그에만 남는다 —
 서버는 이미 처리했으므로 결과를 버리면 에이전트가 같은 쓰기를 다시 보내 글이 중복된다 (2026-10-20 재현). 쿠키가 처음 실은
-그대로면 다시 쓰지 않는다 — 늘 쓰면 동시에 돈 다른 velogger 가 갱신해 저장한 토큰을 옛 토큰으로 덮는다.
+그대로면 다시 쓰지 않는다 — 늘 쓰면 동시에 돈 다른 velogger 가 갱신해 저장한 토큰을 옛 토큰으로 덮는다. velog 가 쿠키를
+모두 지웠을 때도 쓰지 않는다 — v3 는 토큰이 잘못됐다고 보면 빈 Set-Cookie 로 쿠키를 지우는데(2026-10-21 실측: 가짜 토큰
+세션으로 `recent` 를 부르니 쿠키가 모두 지워졌고 v2 `comments`·`whoami` 는 지우지 않았다), 그대로 쓰면 일시적인 판정에도
+세션 파일이 빈다. 세션은 `logout` 으로만 지운다. 세션이 없으면 `whoami` 는 velog 에 묻지 않고 `logged_in: false` 다.
 
 - **글쓰기·수정**은 `writePost`/`editPost` (`title, body, tags, is_markdown, is_temp, is_private, url_slug,
   thumbnail, meta, series_id, token`). 임시저장은 `is_temp: true`(기본), 발행은 false. `url_slug` 를 안 주면
@@ -150,6 +172,11 @@ service 는 v3 GraphQL·캐시 응답을 공통 요약 모델(`VelogPostSummary`
     `--publish` 를 빼도 같은 에러라, 힌트를 '임시저장은 된다' 가 아니라 '웹에서 고치라' 로 따로 둔다.
 - **임시글 목록**은 v2 `posts(username, temp_only: true)` (`drafts`). username 은 `require_auth` 로 얻는다.
 - **좋아요** `likePost`/`unlikePost` → `{id, likes, liked}`. **댓글** `writeComment(post_id, text, comment_id?)`.
+  대댓글은 **level 2 까지**다: 대댓글(level 1)에 다시 달 수 있고, level 2 에 달면 errors `BAD_REQUEST` 'Maximum comment
+  level is 2' (2026-10-21 실측, velog-server `writeComment` 와 같다). `graphql_data()` 는 `BAD_REQUEST` 를 '다시 보내도
+  같다' 는 `INVALID_ARGUMENT` 로 바꾼다 (velog-server 의 `BAD_REQUEST` 는 모두 입력 오류다: 'Max limit is 100' 등).
+  `comments --replies` 는 `ReloadReplies` 에서 `replies` 를 한 번 더 중첩해 한 요청으로 level 2 까지 받는다. velog 는
+  공백만 있는 댓글도 그대로 저장한다 (2026-10-21 실측: `"   "` 이 저장됐다) — 요청 모델이 `NonBlankStr` 로 막는다.
   **통계** `getStats(post_id)` → `{total, count_by_day}` (본인 글만). 글 삭제(`removePost`)는 넣지 않는다. 댓글
   삭제(`comment-remove`)는 되돌릴 수 없어 `--yes` 를 요구한다.
 - **이미지 업로드**(`upload`)는 `POST v2.velog.io/api/v2/files/upload` (multipart: `image`·`type`·`ref_id`).
@@ -193,8 +220,11 @@ mutation 을 하나씩 보내 확인한 결과:
 - 이미 있는 것과 겹친 요청은 `ALREADY_EXISTS` 로 바꾼다: `createSeries` 의 같은 slug(`ALREADY_EXISTS` 'URL Slug already
   exists')와 `appendToSeries` 의 이미 든 글(`CONFLICT` 'Already added to series') (2026-10-21 실측). `UPSTREAM_ERROR` 의 '잠시
   뒤 다시 시도' 힌트로는 에이전트가 다시 보내도 결과가 같은 요청을 되풀이했다.
-- `editComment`·`createSeries` 는 빈 text·이름도 그대로 저장한다 (velog-server 리졸버에 검사가 없다). 요청 모델이
-  `min_length=1` 로 막는다 (`comment` 와 같다).
+- 입력이 잘못됐다고 거절한 요청(`extensions.code` 가 `BAD_REQUEST`)은 `INVALID_ARGUMENT` 로 바꾼다 (2026-10-21 실측:
+  level 2 대댓글에 단 답글 → 'Maximum comment level is 2'). `UPSTREAM_ERROR` 의 '잠시 뒤 다시 시도' 로는 되풀이했다.
+- `writeComment`·`editComment`·`createSeries` 는 빈 text·이름도, 공백만 있는 값도 그대로 저장한다 (velog-server 리졸버에
+  검사가 없고, 2026-10-21 실측: `"   "` 댓글이 저장됐다). 요청 모델이 `NonBlankStr`(`core/schema.py`)로 막는다.
+  `min_length=1` 은 공백만 있는 값을 통과시켰다.
 - **`getStats: null` 을 `_written` 처럼 에러로 바꾸지 않는 것은 일부러다.** 실패는 모두 errors 로 온다 (없는 글
   `NOT_FOUND`, 남의 글 `NO_PERMISSION`, 내 글은 값 — 2026-10-20 실측, velog-server 리졸버도 객체를 주거나 던진다). 쓰기가
   아니라 '반영 안 됨' 걱정이 없으므로, 혹시 errors 없이 null 이 와도 '모름'(`total: null`)으로 낸다. "null 을 성공으로
@@ -254,6 +284,9 @@ VELOGGER_DEBUG=1 velogger publish "제목" --body "본문"
 - **인자 NFC 정규화는 slug 에도 괜찮다 (오탐 정리).** `run()` 은 모든 인자를 NFC 로 바꾼다. "NFD slug 인 글을 못 찾는다" 는
   지적이 있었지만, velog 는 글 slug 에서 NFD 자모(U+1100–11FF)를 지워 저장해 NFD slug 인 글이 없다 (2026-10-21 실측: 비공개
   테스트 글의 slug 를 NFD 'nfd-확인용' 으로 고치니 'nfd-' 로 저장됐다. velog-server escapeForUrl 도 'ㄱ-힣' 만 남긴다).
+  다만 **혼자서도 NFC 가 바꾸는 글자는 그대로 둔다** (`_compose_argument`). CJK 호환 한자(樂 U+F914 → U+6A02)·옴 기호
+  (U+2126 → Ω U+03A9) 같은 글자로, 제목·본문·댓글이 쓴 것과 다르게 저장됐다 (2026-10-21 실측: 비공개 테스트 글 제목의
+  U+F914 가 U+6A02 로 저장됐고, velog 자체는 받은 그대로 저장한다). NFD 결과에는 이런 글자가 없어 자모 합치기와 상관없다.
 - **stdout 이 못 담는 글자는 `\uXXXX` 로 쓴다.** Windows 에서 `PYTHONUTF8` 없이 파이프로 받으면 stdout 이 cp949 라 이모지가 든
   결과(2026-10-21 실측: 트렌딩 20건 중 9글자)가 `UnicodeEncodeError` 로 'velog 응답이 이상하다' 는 `PARSE_ERROR` 가 됐다. 쓰기는
   이미 반영된 뒤라 에이전트가 다시 보낼 수 있었다 (`cli/output.py` 의 `_dumps`).
@@ -266,6 +299,9 @@ VELOGGER_DEBUG=1 velogger publish "제목" --body "본문"
 - **세션 파일 권한.** `save_session` 은 `mkstemp`(늘 0600 새 파일)로 쓰고 바꿔치기한다. 고정 이름 tmp 를 `O_CREAT` 로
   열면 남아 있던 0644 tmp 의 권한을 물려받았다. 폴더 `chmod 0700` 은 새로 만든 폴더에만 한다 (`VELOGGER_CONFIG_DIR`
   로 고른 기존 폴더는 건드리지 않는다). Windows 는 POSIX 권한이 없어 `st_mode` 가 늘 0o666 으로 보인다 (테스트가 건너뛴다).
+- **팔로워·팔로잉의 `id` 는 사용자 ID 가 아니다.** v3 `followers`·`followings` 항목의 사용자 ID 는 `userId` 이고 `id` 는
+  다른 값(팔로우 관계 ID 로 보인다)이다 (2026-10-21 실측: `userId` 가 `velogUserId` 로 받은 사용자 ID 와 같았다). 그래서
+  `user_id` 는 `userId` 만 쓰고, 없으면 `id` 로 채우지 않고 `null` 이다.
 - **빈 목록은 `[]`.** v3 는 시리즈·태그가 없는 사용자에게 `series_list: []`·`userTags.tags: []`·`profile_links: {}` 를
   준다. `or None` 으로 바꾸면 '모름(null)' 이 된다 (2026-10-20 실측: `series: null` 로 나왔다).
 

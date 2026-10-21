@@ -78,8 +78,8 @@ velog 는 **비밀번호가 없다.** 이메일 매직 링크나 소셜 로그�
 | code | 할 일 |
 | --- | --- |
 | `NOT_LOGGED_IN` | 사용자에게 `velogger login` 을 직접 실행하라고 안내한다. 에이전트가 대신 로그인하지 않는다 |
-| `LOGIN_FAILED` | code 가 만료·소비됐거나 쿠키가 잘못됐다. `velogger login <이메일>` 로 새 링크를 받는다 |
-| `INVALID_ARGUMENT` | `message`·`hint` 를 읽고 `--help` 로 고친다. 같은 명령을 그대로 다시 부르지 않는다 |
+| `LOGIN_FAILED` | code 가 만료·소비됐거나 쿠키가 잘못됐다. `velogger login <이메일>` 로 새 링크를 받는다. `details.registered: false` 면 velog 계정이 없는 이메일이다: 가입된 이메일인지 사용자에게 묻는다 |
+| `INVALID_ARGUMENT` | `message`·`hint` 를 읽고 `--help` 로 고친다. velog 가 거절한 값(예: 대댓글의 대댓글에 단 `--reply-to`)도 이 코드다. 같은 명령을 그대로 다시 부르지 않는다 |
 | `NOT_FOUND` | 없는 글·사용자·태그다. `username`·`url_slug`·`id` 를 이전 결과에서 그대로 복사했는지 확인한다 |
 | `FORBIDDEN` | `message` 로 갈린다. 캡차 이야기면 발행에 캡차가 필요한 계정이다 (`is_trusted: false`): 그 글은 웹에서 발행하라고 안내한다 (임시저장은 된다). '본인 것이 아니라'·'본인 글이 아니라' 면 남의 글·댓글·시리즈다: 내 것의 id 인지 확인한다 |
 | `ALREADY_EXISTS` | 같은 slug 의 시리즈가 있거나 이미 시리즈에 든 글이다. 같은 명령을 다시 보내지 않는다 (다른 `--slug` 를 주거나 있는 것을 쓴다) |

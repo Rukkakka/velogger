@@ -1,8 +1,23 @@
 from pydantic import (
+    AfterValidator,
     BaseModel,
     ConfigDict,
     ValidationError,
 )
+
+from typing import Annotated
+
+
+def _require_text(value: str) -> str:
+    """빈 값과 공백만 있는 값을 막는다. 값은 바꾸지 않는다 (앞뒤 공백도 사용자가 쓴 그대로 보낸다)."""
+    if not value.strip():
+        raise ValueError('빈 값이나 공백만 있는 값은 보낼 수 없습니다')
+    return value
+
+
+# 공백만 있으면 안 되는 문자열. `min_length=1` 은 '   ' 을 통과시킨다. 에러 문구는 `ValueError` 메시지가 그대로
+# INVALID_ARGUMENT 로 나간다 (cli/output.py `_validation_message`).
+NonBlankStr = Annotated[str, AfterValidator(_require_text)]
 
 
 class RequestModel(BaseModel):

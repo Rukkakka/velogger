@@ -35,9 +35,9 @@ from velogger.service.common import (
     edit_url,
     graphql_data,
     not_logged_in_error,
+    post_list_of,
     post_url,
     require_auth,
-    summary_of_card,
 )
 
 from typing import (
@@ -68,6 +68,9 @@ SVG_PATTERN: re.Pattern[bytes] = re.compile(
     re.DOTALL,
 )
 IMAGE_FORMATS_TEXT: str = 'PNG·JPEG·GIF·WebP·AVIF·SVG'
+# 마크다운 이미지 alt 에서 뜻이 있는 글자. 파일 이름 `diagram]v2.png` 를 그대로 넣으면 `![diagram]v2](...)` 가 돼 이미지가
+# 아니라 글자로 보인다
+MARKDOWN_ALT_SPECIAL: re.Pattern[str] = re.compile(r'([\\\[\]])')
 
 
 def slugify(title: str) -> str:
@@ -362,9 +365,7 @@ def get_drafts(client: VelogClient, *, limit: int = 20) -> VelogPostList:
     """
     user = require_auth(client)
     data = graphql_data(client.run_request_drafts(user.username or '', limit))
-    cards = (data.posts if data else None) or []
-    summaries = [summary_of_card(card) for card in cards]
-    return VelogPostList(returned=len(summaries), posts=summaries)
+    return post_list_of(data.posts if data else None)
 
 
 def like_post(client: VelogClient, post_id: str) -> VelogLikeResult:
@@ -551,7 +552,8 @@ def upload_image(client: VelogClient, path: Path, *, post_id: str) -> VelogUploa
             message='업로드 응답에서 이미지 URL 을 찾지 못했습니다',
             hint='velog 응답 형식이 바뀌었을 수 있습니다. VELOGGER_DEBUG=1 로 원본 응답을 확인하세요',
         )
-    return VelogUploadResult(filename=path.name, url=url, markdown=f'![{path.stem}]({url})')
+    alt = MARKDOWN_ALT_SPECIAL.sub(r'\\\1', path.stem)
+    return VelogUploadResult(filename=path.name, url=url, markdown=f'![{alt}]({url})')
 
 
 def get_stats(client: VelogClient, post_id: str) -> VelogStatsResult:

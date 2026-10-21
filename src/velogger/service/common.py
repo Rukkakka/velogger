@@ -45,6 +45,9 @@ NOT_LOGGED_IN_MESSAGE_PATTERN: re.Pattern[str] = re.compile(r'\bnot logged in\b'
 # 이미 있는 것과 겹쳐 거절된 요청. createSeries 의 같은 slug 는 ALREADY_EXISTS 'URL Slug already exists' (2026-10-21 실측),
 # appendToSeries 의 이미 든 글은 CONFLICT 'Already added to series' (같은 날 실측)
 ALREADY_EXISTS_CODES: frozenset[str] = frozenset({'ALREADY_EXISTS', 'CONFLICT'})
+# velog 가 입력이 잘못됐다고 거절한 요청 (velog-server 리졸버의 'Maximum comment level is 2'·'Max limit is 100' 등).
+# 2026-10-21 실측: level 2 대댓글에 --reply-to 로 답글을 달면 BAD_REQUEST 'Maximum comment level is 2'
+BAD_REQUEST_CODE: str = 'BAD_REQUEST'
 NOT_LOGGED_IN_HINT: str = '사용자가 터미널에서 `velogger login` 을 직접 실행해 로그인해야 합니다'
 
 
@@ -84,7 +87,8 @@ def graphql_data(response: VelogGraphQLResponse[_Data]) -> _Data | None:
 
     Raises:
         VeloggerError: `errors` 가 있을 때. UNAUTHENTICATED 면 `NOT_LOGGED_IN`, 대상이 없으면 `NOT_FOUND`,
-            남의 글·댓글·시리즈면 `FORBIDDEN`, 이미 있는 것과 겹치면 `ALREADY_EXISTS`, 그 밖은 `UPSTREAM_ERROR`.
+            남의 글·댓글·시리즈면 `FORBIDDEN`, 이미 있는 것과 겹치면 `ALREADY_EXISTS`, 입력이 잘못됐으면
+            `INVALID_ARGUMENT`, 그 밖은 `UPSTREAM_ERROR`.
     """
     if response.errors:
         if any(_is_login_error(error) for error in response.errors):
@@ -118,6 +122,16 @@ def graphql_data(response: VelogGraphQLResponse[_Data]) -> _Data | None:
                 hint=(
                     '같은 요청을 다시 보내지 마세요. 시리즈 slug 가 겹치면 --slug 로 다른 값을 주거나 이미 있는 시리즈를 쓰고'
                     '(velogger user <내 아이디> 의 series), 이미 시리즈에 든 글이면 그대로 두면 됩니다'
+                ),
+            )
+        if any((error.extensions or {}).get('code') == BAD_REQUEST_CODE for error in response.errors):
+            # 이것도 UPSTREAM_ERROR 의 '잠시 뒤 다시 시도' 로 두면 에이전트가 같은 요청을 되풀이한다
+            raise VeloggerError(
+                code='INVALID_ARGUMENT',
+                message=f'velog 가 잘못된 요청이라고 거절했습니다: {messages}',
+                hint=(
+                    '다시 보내도 결과가 같습니다. 메시지대로 값을 고치세요. 대댓글은 2단계까지라, 대댓글의 대댓글에는 '
+                    '--reply-to 로 답글을 달 수 없습니다 (그 위 대댓글에 다세요)'
                 ),
             )
         raise VeloggerError(
@@ -255,3 +269,9 @@ class VelogPostList(BaseModel):
             if key not in self.model_fields_set:
                 data.pop(key, None)
         return data
+
+
+def post_list_of(cards: list[VelogPostCardModel] | None) -> VelogPostList:
+    """GraphQL 글 카드 목록을 페이지 정보 없는 목록 결과로. velog 가 목록을 주지 않으면(null) 빈 목록으로 낸다."""
+    summaries = [summary_of_card(card) for card in cards or []]
+    return VelogPostList(returned=len(summaries), posts=summaries)

@@ -27,8 +27,8 @@ class VelogUserTagRef(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
-    name: str | None = None
-    posts_count: int | None = None
+    name: Annotated[str | None, Field(description='태그 이름')] = None
+    posts_count: Annotated[int | None, Field(description='이 사용자가 이 태그로 쓴 글 수')] = None
 
 
 class VelogUserSeriesRef(BaseModel):
@@ -36,9 +36,9 @@ class VelogUserSeriesRef(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
-    name: str | None = None
-    url: str | None = None
-    posts_count: int | None = None
+    name: Annotated[str | None, Field(description='시리즈 이름')] = None
+    url: Annotated[str | None, Field(description='시리즈 주소')] = None
+    posts_count: Annotated[int | None, Field(description='시리즈 안 글 수')] = None
 
 
 class VelogUserProfile(BaseModel):
