@@ -295,12 +295,13 @@ def edit_post(
     is_private: bool | None = None,
     publish_now: bool = False,
     url_slug: str | None = None,
+    thumbnail: str | None = None,
 ) -> VelogPublishResult:
     """기존 글을 고친다. 바꾸지 않은 필드는 현재 값을 그대로 보내(본문 등이 지워지지 않게) editPost 로 보낸다.
 
     editPost 는 보낸 값으로 글을 덮으므로 시리즈(`series_id`)·`meta`(short_description 등)도 현재 값을 그대로
     보낸다. series_id 를 빼면 null 로 가 글이 시리즈에서 빠진다 (2026-10-20 실측). `publish_now=True` 면 초안을
-    발행 상태로 바꾼다 (신뢰 계정만).
+    발행 상태로 바꾼다 (신뢰 계정만). `thumbnail` 을 주면 글 목록 카드의 썸네일을 그 이미지 URL 로 바꾼다.
 
     Raises:
         VeloggerError: 로그인 안 됨 (`NOT_LOGGED_IN`), 글이 없을 때 (`NOT_FOUND`), 남의 글이거나 발행인데 신뢰 계정이
@@ -348,7 +349,7 @@ def edit_post(
         is_temp=is_temp,
         is_private=resolved_private,
         url_slug=url_slug or current.url_slug or slugify(current.title or 'post'),
-        thumbnail=current.thumbnail,
+        thumbnail=thumbnail if thumbnail is not None else current.thumbnail,
         series_id=current.series.id if current.series else None,
         meta=current.meta or {},
     )

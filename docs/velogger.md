@@ -104,7 +104,7 @@ velogger post teo ai-native-fe
 velogger post someone -- -회고      # slug 가 '-' 로 시작하면 앞에 -- 를 둔다 (없으면 옵션으로 읽혀 INVALID_ARGUMENT)
 ```
 
-**반환값**: `body`(본문. `is_markdown: true` 면 마크다운), `title`·`tags`·`likes`·`comments_count`·`released_at`, `is_private`·`is_temp`, 속한 `series`(이름·url·시리즈 안 글), 같은 시리즈의 `previous_post`·`next_post`. 없는 글은 `NOT_FOUND`.
+**반환값**: `body`(본문. `is_markdown: true` 면 마크다운), `title`·`tags`·`likes`·`comments_count`·`released_at`, `thumbnail`(목록 카드의 썸네일 이미지 URL, 없으면 `null`), `is_private`·`is_temp`, 속한 `series`(이름·url·시리즈 안 글), 같은 시리즈의 `previous_post`·`next_post`. 없는 글은 `NOT_FOUND`.
 
 velog 가 시리즈 안 글 목록을 주지 않으면 `series.posts` 는 `null`(모름)이다. 로그인한 채로 시리즈에 든 내 글을 읽으면 velog 서버 오류로 이 목록만 빠지고, 그 사실을 `notes` 로 알린다. 목록은 `velogger series <username> <시리즈 url 끝부분>` 으로 받는다.
 
@@ -202,8 +202,8 @@ PowerShell 5·옛 메모장이 붙인다)은 떼고 읽는다.
 ### `edit` — 내 글 고치기
 
 `velogger edit <id> [옵션]`. `id` 는 `posts`·`drafts` 결과의 `id`. **안 준 필드는 현재 값을 그대로 둔다** (본문을
-안 주면 본문이 유지되고, 속한 시리즈·요약(short_description)도 그대로다). `--title`·`--body`/`--file`·`--tag`·`--slug`·`--private`/`--public`·`--publish`(초안을
-발행 상태로, 신뢰 계정만)를 받는다. 신뢰 계정이 아니면 **이미 발행된 글은 `--publish` 없이도 고칠 수 없다** (velog 웹도
+안 주면 본문이 유지되고, 속한 시리즈·요약(short_description)도 그대로다). `--title`·`--body`/`--file`·`--tag`·`--slug`·`--private`/`--public`·`--thumbnail`(글 목록 카드의
+썸네일 이미지 URL. `upload` 결과의 `url`)·`--publish`(초안을 발행 상태로, 신뢰 계정만)를 받는다. 신뢰 계정이 아니면 **이미 발행된 글은 `--publish` 없이도 고칠 수 없다** (velog 웹도
 발행된 글을 고칠 때 캡차를 띄운다). 그때는 `FORBIDDEN` 이니 velog.io 웹에서 고친다. 남의 글 id 를 주면 고치지 않고
 `FORBIDDEN`('본인 글이 아니라') 이다. velog 가 글의 발행·공개 상태를 주지 않으면 추측해 덮어쓰지 않고 `PARSE_ERROR` 로 멈춘다
 (모르는 채 보내면 발행된 글이 초안이 되거나 비공개 글이 공개될 수 있다).
