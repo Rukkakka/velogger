@@ -4,7 +4,7 @@ build-backend = 'hatchling.build'
 
 [project]
 name = 'velogger'
-version = '0.1.1'
+version = '0.2.0'
 description = '벨로그(velog.io)를 다루는 LLM 친화 비공식 CLI'
 readme = 'README.md'
 license = 'MIT'
