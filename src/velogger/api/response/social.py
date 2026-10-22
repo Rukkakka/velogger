@@ -190,9 +190,14 @@ class VelogCreateSeriesDataModel(ResponseModel):
 
 
 class VelogAppendToSeriesDataModel(ResponseModel):
-    """`appendToSeries` mutation 의 data (성공하면 true)."""
+    """`appendToSeries` mutation 의 data. 성공하면 넣은 글의 시리즈 안 순번(1부터)이다.
+
+    velog-server 는 `appendToSeries(...): Int` 로 정의하고 `nextIndex` 를 돌려준다 (velopert/velog-server
+    `src/graphql/series.ts`). bool 로 받으면 첫 글(1)만 통과하고 두 번째 글(2)부터 검증에 실패한다 (2026-10-22 실측: 7편을
+    차례로 넣으니 2편부터 PARSE_ERROR 였는데 모두 들어가 있었다).
+    """
 
     append_to_series: Annotated[
-        bool | None,
-        Field(description='시리즈에 들어갔는지')
+        int | None,
+        Field(description='넣은 글의 시리즈 안 순번 (1부터)')
     ] = Field(default=None, alias='appendToSeries')
