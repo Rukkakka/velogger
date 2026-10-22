@@ -9,6 +9,7 @@ from velogger.api.client import VelogClient
 from velogger.api.request.write import VelogWritePostRequestPayloadModel
 from velogger.core.errors import VeloggerError
 from velogger.service.write import (
+    add_to_series,
     edit_post,
     like_post,
     publish,
@@ -236,3 +237,17 @@ def test_slugify_keeps_hangul_and_replaces_spaces():
     assert slugify('  공백   여러 개  ') == '공백-여러-개'
     assert slugify('!!!') == 'post'
     assert slugify('..') == 'post', '점만 남은 slug 는 글 주소가 상위 경로(@user/..)가 된다'
+
+
+def test_series_add_reads_the_series_index_velog_returns():
+    """appendToSeries 는 넣은 글의 시리즈 안 순번(Int)을 준다.
+
+    bool 로 받던 때는 첫 글(1)만 통과하고 두 번째 글(2)부터 PARSE_ERROR 였다. 글은 들어가 있어, 에이전트가 실패로 알고
+    같은 글을 다시 넣으려 했다 (2026-10-22 실측, velog-server `appendToSeries: Int`).
+    """
+    client = _mock_client(lambda request: httpx.Response(200, json={'data': {'appendToSeries': 2}}))
+
+    result = add_to_series(client, 's1', 'p2')
+
+    assert result.added is True
+    assert result.index == 2

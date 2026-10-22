@@ -246,7 +246,7 @@ velogger series-add <시리즈 id> <글 id>        # 시리즈 맨 뒤에 넣는
 ```
 
 `publish --series-id <id>` 로 글을 쓸 때 바로 넣을 수도 있다. slug 를 안 주면 이름에서 만든다. 반환은 `series-create` 가
-`id`·`name`·`url_slug`, `series-add` 가 `series_id`·`post_id`·`added`.
+`id`·`name`·`url_slug`, `series-add` 가 `series_id`·`post_id`·`added`·`index`(넣은 글의 시리즈 안 순번, 1부터).
 
 같은 slug 의 시리즈가 이미 있거나(`series-create`), 이미 그 시리즈에 든 글이면(`series-add`) `ALREADY_EXISTS` 다. 다시
 보내도 결과가 같으니 다른 `--slug` 를 주거나 이미 있는 것을 쓴다. 이름이나 `--slug` 가 비었거나 공백뿐이면 `INVALID_ARGUMENT` 다.

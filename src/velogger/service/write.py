@@ -154,6 +154,7 @@ class VelogSeriesAddResult(BaseModel):
     series_id: Annotated[str, Field(description='시리즈 ID')]
     post_id: Annotated[str, Field(description='넣은 글 ID')]
     added: Annotated[bool, Field(description='들어갔는지')]
+    index: Annotated[int, Field(description='시리즈 안 순번 (1부터)')]
 
 
 class VelogUploadResult(BaseModel):
@@ -479,8 +480,8 @@ def add_to_series(client: VelogClient, series_id: str, post_id: str) -> VelogSer
         VeloggerError: 이미 그 시리즈에 든 글일 때 (`ALREADY_EXISTS`).
     """
     data = graphql_data(client.run_request_append_to_series(series_id, post_id))
-    added = _written(data.append_to_series if data else None, '시리즈에 넣기(appendToSeries)')
-    return VelogSeriesAddResult(series_id=series_id, post_id=post_id, added=bool(added))
+    index = _written(data.append_to_series if data else None, '시리즈에 넣기(appendToSeries)')
+    return VelogSeriesAddResult(series_id=series_id, post_id=post_id, added=True, index=index)
 
 
 def _image_format(content: bytes) -> str | None:
