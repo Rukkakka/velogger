@@ -496,6 +496,7 @@ def edit_command(
     slug: Annotated[str | None, typer.Option('--slug', help='새 url_slug')] = None,
     private: Annotated[bool | None, typer.Option('--private/--public', help='비공개/공개로 바꾸기')] = None,
     publish_flag: Annotated[bool, typer.Option('--publish', help='초안을 발행 상태로 바꾸기 (신뢰 계정만)')] = False,
+    thumbnail: Annotated[str | None, typer.Option('--thumbnail', help='썸네일 이미지 URL (velogger upload 결과의 url)')] = None,
     pretty: PrettyOption = None,
 ) -> None:
     """내 글을 고친다. 바꾸지 않은 필드는 현재 값을 그대로 둔다 (본문을 안 주면 본문은 유지된다).
@@ -508,6 +509,7 @@ def edit_command(
             result = edit_post(
                 client, post_id, title=title, body=new_body,
                 tags=_split_tags(tag) if tag else None, is_private=private, publish_now=publish_flag, url_slug=slug,
+                thumbnail=thumbnail,
             )
             emit(result, pretty)
 
