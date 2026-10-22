@@ -75,6 +75,7 @@ class VelogPostDetail(BaseModel):
     display_name: Annotated[str | None, Field(description='글쓴이 표시 이름')] = None
     url: Annotated[str | None, Field(description='원 글 주소')] = None
     url_slug: Annotated[str | None, Field(description='글 slug')] = None
+    thumbnail: Annotated[str | None, Field(description='목록 카드의 썸네일 이미지 URL. 없으면 null')] = None
     released_at: Annotated[str | None, Field(description='발행 시각 (ISO)')] = None
     updated_at: Annotated[str | None, Field(description='수정 시각 (ISO)')] = None
     tags: Annotated[list[str] | None, Field(description='태그')] = None
@@ -124,6 +125,7 @@ def _detail_of(post: VelogReadPostModel) -> VelogPostDetail:
         display_name=display_name,
         url=post_url(username, post.url_slug),
         url_slug=post.url_slug,
+        thumbnail=post.thumbnail,
         released_at=post.released_at,
         updated_at=post.updated_at,
         tags=post.tags,

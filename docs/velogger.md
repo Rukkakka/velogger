@@ -104,7 +104,7 @@ velogger post teo ai-native-fe
 velogger post someone -- -회고      # slug 가 '-' 로 시작하면 앞에 -- 를 둔다 (없으면 옵션으로 읽혀 INVALID_ARGUMENT)
 ```
 
-**반환값**: `body`(본문. `is_markdown: true` 면 마크다운), `title`·`tags`·`likes`·`comments_count`·`released_at`, `is_private`·`is_temp`, 속한 `series`(이름·url·시리즈 안 글), 같은 시리즈의 `previous_post`·`next_post`. 없는 글은 `NOT_FOUND`.
+**반환값**: `body`(본문. `is_markdown: true` 면 마크다운), `title`·`tags`·`likes`·`comments_count`·`released_at`, `thumbnail`(목록 카드의 썸네일 이미지 URL, 없으면 `null`), `is_private`·`is_temp`, 속한 `series`(이름·url·시리즈 안 글), 같은 시리즈의 `previous_post`·`next_post`. 없는 글은 `NOT_FOUND`.
 
 velog 가 시리즈 안 글 목록을 주지 않으면 `series.posts` 는 `null`(모름)이다. 로그인한 채로 시리즈에 든 내 글을 읽으면 velog 서버 오류로 이 목록만 빠지고, 그 사실을 `notes` 로 알린다. 목록은 `velogger series <username> <시리즈 url 끝부분>` 으로 받는다.
 
