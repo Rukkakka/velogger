@@ -59,7 +59,11 @@ jobs:
         with:
           name: dist
           path: dist/
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      # 이 잡은 PyPI 에 올릴 권한(id-token)을 받으므로, 여기서 쓰는 제3자 액션은 움직이는 `release/v1` 브랜치 대신 커밋으로 고정한다
+      # (브랜치가 바뀌면 다음 릴리스가 그 코드로 게시된다). actions/* 는 GitHub 이 만든 액션이라 다른 잡처럼 태그로 둔다.
+      # 올리려면: gh api repos/pypa/gh-action-pypi-publish/releases/latest 의 태그를 커밋으로 풀어 바꾼다
+      # (gh api repos/pypa/gh-action-pypi-publish/git/ref/tags/<태그> → git/tags/<sha> 의 object.sha)
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3 (2026-10-20, 그날 release/v1 과 같음)
 
   github-release:
     name: GitHub Release
