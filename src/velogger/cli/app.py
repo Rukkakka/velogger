@@ -325,7 +325,10 @@ def tag_command(
     with handle_errors(), _session_client() as client:
         listing = get_tag_posts(client, name, limit=limit, cursor=cursor)
         payload = listing.model_dump()
-        # 태그 설명은 페이지마다 같아 첫 페이지에서만 받는다 (요청을 줄인다)
+        # 태그 설명은 페이지마다 같아 첫 페이지에서만 받는다 (요청을 줄인다). 이 조회가 실패하면 받은 목록까지 에러로 끝내는
+        # 것은 일부러다: 늘 실패하는 태그는 없고(2026-10-23 실측: c#·c++·.net·공백·%·이모지·300자·없는 태그 모두 에러 없이 응답,
+        # 없는 태그는 null) 남는 것은 재시도 3번 뒤의 일시적 실패뿐이다. 조회라 다시 불러도 안전하고, notes 로 넘기면 v3 `tag`
+        # 쿼리가 깨져도 exit 0 이라 매일 API 감시가 고장을 못 본다. "부가 정보 실패로 결과를 버린다" 는 지적은 오탐이다
         info = get_tag_info(client, name) if cursor is None else None
         if info is not None:
             payload = {'tag': info.model_dump(), **payload}

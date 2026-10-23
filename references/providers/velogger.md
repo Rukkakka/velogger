@@ -252,6 +252,9 @@ mutation 을 하나씩 보내 확인한 결과:
 - `writeComment`·`editComment`·`createSeries` 는 빈 text·이름도, 공백만 있는 값도 그대로 저장한다 (velog-server 리졸버에
   검사가 없고, 2026-10-21 실측: `"   "` 댓글이 저장됐다). 요청 모델이 `NonBlankStr`(`core/schema.py`)로 막는다.
   `min_length=1` 은 공백만 있는 값을 통과시켰다.
+- **`removeComment: false` 를 따로 에러로 바꾸지 않는 것도 일부러다.** velog-server `removeComment` 는 지운 뒤 늘 `true` 를
+  주고 실패는 모두 던진다 (소스 기준. 2026-10-23 실측: 가짜 id 는 `null` + 'Comment not found'). null 은 `_written` 이 막아 false 가
+  올 길이 없다. "false 를 성공(`removed: false`, exit 0)으로 낸다" 는 지적은 오탐이다.
 - **`getStats: null` 을 `_written` 처럼 에러로 바꾸지 않는 것은 일부러다.** 실패는 모두 errors 로 온다 (없는 글
   `NOT_FOUND`, 남의 글 `NO_PERMISSION`, 내 글은 값 — 2026-10-20 실측, velog-server 리졸버도 객체를 주거나 던진다). 쓰기가
   아니라 '반영 안 됨' 걱정이 없으므로, 혹시 errors 없이 null 이 와도 '모름'(`total: null`)으로 낸다. "null 을 성공으로
@@ -340,3 +343,13 @@ VELOGGER_DEBUG=1 velogger publish "제목" --body "본문"
 - **최신 글 스팸.** `recentPosts` 상단에 스팸이 끼기도 한다. 서버 결과를 우리 기준으로 다시 거르지 않는 원칙상
   임의로 지우지 않고, 필요하면 `is_private` 같은 서버 제공 필드로만 가른다.
 - **RSS 백업.** `v2.velog.io/rss/@username` 으로 사용자 글 목록을 XML 로도 받을 수 있다 (GraphQL 이 막히면 대체용).
+- **부가 조회가 실패하면 명령 전체가 에러다 (오탐 정리).** `tag` 의 태그 정보(v3 `tag`)와 `comments --replies` 의 대댓글
+  조회(`ReloadReplies`)는 본 목록을 받은 뒤 한 번 더 부르는 요청인데, 실패하면 받은 목록까지 버리고 에러로 끝난다. "부가
+  정보만 `notes` 로 빼고 결과는 내야 한다" 는 지적이 있었지만 일부러 이렇게 둔다. 늘 실패하는 경우를 찾지 못했고 (2026-10-23
+  실측: `c#`·`c++`·`.net`·`a b`·`%`·이모지·300자·없는 태그 모두 에러 없이 응답, 없는 태그는 `null`. 한 달 트렌딩 25개 글에 '지워졌는데
+  대댓글이 남은' 부모 댓글이 없었다) 남는 것은 재시도 3번 뒤의 일시적 실패뿐이다. 조회라 다시 불러도 안전하고, 실패를
+  `notes` 로 넘기면 그 쿼리가 깨져도 exit 0 이라 매일 API 감시가 고장을 보지 못한다. 늘 실패하는 경우가 나오면 그 경우만 따로
+  다룬다 (`read_post` 의 시리즈 글 목록처럼).
+- **`tag %`·`tag 😀` 의 태그 정보는 엉뚱한 태그다.** velog 가 이름을 정리하면 빈 문자열이 되는 태그에 v3 `tag` 가 `&&` 라는
+  태그를 준다 (2026-10-23 실측. 글 목록은 `count: 0`). `c#`·`c++` 는 둘 다 `C` 태그 정보와 같은 글 목록(`count: 14770`)을 받는다. velog 가 정한 결과라
+  다시 판정하지 않는다.

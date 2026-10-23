@@ -158,6 +158,11 @@ def get_comments(client: VelogClient, post_id: str, *, with_replies: bool = Fals
     `with_replies` 면 대댓글이 있는 최상위 댓글마다 한 번씩 더 조회한다 (요청이 댓글 수만큼 늘어난다). 한 번의 조회로
     대댓글의 대댓글(level 2, velog 의 최대 단계)까지 받는다.
 
+    대댓글 조회가 하나라도 실패하면 명령 전체를 에러로 끝내는 것은 일부러다 (`tag` 의 태그 정보와 같다). 늘 실패하는 댓글을
+    찾지 못했고(2026-10-23: 한 달 트렌딩 25개 글에 '지워졌는데 대댓글이 남은' 부모 댓글이 없었다) 남는 것은 일시적 실패뿐이다.
+    조회라 다시 불러도 안전하고, 그 댓글만 `replies: null` 로 넘기면 `ReloadReplies` 가 깨져도 exit 0 이라 매일 API 감시가
+    고장을 못 본다.
+
     Raises:
         VeloggerError: 글이 없을 때 (`NOT_FOUND`).
     """
