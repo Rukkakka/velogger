@@ -1,0 +1,76 @@
+"""모델 선언 규칙 (references/code-style.md 4절). 어기면 Pylance 자동완성·검사기와 실행이 어긋난다."""
+
+import ast
+import importlib
+import pkgutil
+from pathlib import Path
+
+from pydantic import BaseModel
+
+import velogger
+
+
+SOURCE = Path(velogger.__file__).parent
+
+
+def _all_models() -> list[type[BaseModel]]:
+    for module in pkgutil.walk_packages(velogger.__path__, 'velogger.'):
+        importlib.import_module(module.name)
+    found: list[type[BaseModel]] = []
+    stack = [BaseModel]
+    while stack:
+        for model in stack.pop().__subclasses__():
+            stack.append(model)
+            if model.__module__.startswith('velogger.'):
+                found.append(model)
+    return found
+
+
+# --- pydantic 선언 (references/code-style.md 4절) ---
+
+def test_assignment_field_only_holds_default_factory() -> None:
+    # 제약·설명·별칭은 Annotated 안, 단순 기본값은 `= 값` 이라 대입 위치의 Field() 에는 default_factory 만 남는다.
+    # 별칭을 대입 위치에 두면 Pylance 가 생성자 인자를 별칭(camelCase)으로 보는데 ruff·mypy 는 잡지 못한다
+    misplaced = []
+    for path in sorted(SOURCE.rglob('*.py')):
+        for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+            if not (
+                isinstance(node, ast.AnnAssign)
+                and isinstance(node.value, ast.Call)
+                and isinstance(node.value.func, ast.Name)
+                and node.value.func.id == 'Field'
+            ):
+                continue
+            if node.value.args or {keyword.arg for keyword in node.value.keywords} != {'default_factory'}:
+                misplaced.append(f'{path.relative_to(SOURCE)}:{node.lineno}')
+    assert misplaced == []
+
+
+
+def test_defaults_are_not_inside_annotated() -> None:
+    # Annotated 안 Field() 의 기본값은 검사기가 읽지 않아 필드를 필수로 본다. 런타임은 선택이라 둘이 어긋난다
+    misplaced: set[str] = set()
+    for path in sorted(SOURCE.rglob('*.py')):
+        for node in ast.walk(ast.parse(path.read_text(encoding='utf-8'))):
+            if not (isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id == 'Annotated'):
+                continue
+            for call in ast.walk(node.slice):
+                if (
+                    isinstance(call, ast.Call)
+                    and isinstance(call.func, ast.Name)
+                    and call.func.id == 'Field'
+                    and (call.args or {keyword.arg for keyword in call.keywords} & {'default', 'default_factory'})
+                ):
+                    misplaced.add(f'{path.relative_to(SOURCE)}:{call.lineno}')
+    assert sorted(misplaced) == []
+
+
+def test_aliased_models_accept_field_names() -> None:
+    # Annotated 안의 별칭은 검사기가 읽지 않아 생성자를 필드 이름으로 본다. 런타임도 필드 이름을 받아야 둘이 맞는다
+    rejecting = [
+        f'{model.__module__}.{model.__qualname__}'
+        for model in _all_models()
+        if any(field.alias for field in model.model_fields.values())
+        and not (model.model_config.get('validate_by_name') or model.model_config.get('populate_by_name'))
+    ]
+    assert rejecting == []
