@@ -100,12 +100,12 @@ src/velogger/
 
 ## 요청·응답 모델
 
-- 요청 모델은 `core.schema.RequestModel`(`extra='forbid'`, `populate_by_name=True`), 응답 모델은
-  `ResponseModel`(`extra='allow'`)을 상속한다. 비공식 API 가 예고 없이 필드를 더하므로 응답 모델은 모르는
-  필드를 버리지 않는다.
+- 요청 모델은 `core.schema.RequestModel`(`extra='forbid'`), 응답 모델은 `ResponseModel`(`extra='allow'`)을
+  상속한다. 둘 다 `populate_by_name=True` 라 코드에서는 필드 이름으로 만든다. 비공식 API 가 예고 없이 필드를
+  더하므로 응답 모델은 모르는 필드를 버리지 않는다.
 - 응답 필드는 **velog 가 빠뜨릴 수 있으면 `X | None = None`** 으로 둔다. 실제 응답에서 늘 오는 것만 필수로 한다.
 - 와이어 이름이 snake_case 면 별칭이 필요 없다 (velog GraphQL 은 대부분 snake_case). camelCase 로 오는 캐시
-  REST 등은 `Field(alias='camelCase')`.
+  REST 등은 `alias='camelCase'` 를 단다. 선언 위치는 [code-style.md](code-style.md#4-pydantic-선언) 를 따른다.
 - GraphQL 응답은 `data` 와 `errors` 를 함께 담는 봉투 모델로 받는다. `errors` 항목은 `response/common.py` 의
   `VelogGraphQLErrorModel`(message·extensions)로.
 
