@@ -34,7 +34,7 @@ class VelogCodeLoginResponseModel(ResponseModel):
     값이 모델에 남는다.
     """
 
-    model_config = ConfigDict(populate_by_name=True, extra='ignore')
+    model_config = ConfigDict(validate_by_name=True, extra='ignore')
 
     username: Annotated[
         str | None,
