@@ -13,8 +13,10 @@ from velogger.api.request.social import (
     ReadingListType,
     VelogFeedPostsRequestPayloadModel,
     VelogFollowListRequestPayloadModel,
+    VelogReadingListRequestPayloadModel,
     VelogSeriesRequestPayloadModel,
 )
+from velogger.api.response.posts import VelogPostCardModel
 from velogger.api.response.social import (
     VelogCommentModel,
     VelogFollowUserModel,
@@ -24,7 +26,9 @@ from velogger.service.common import (
     VELOG_BASE,
     VelogPostList,
     VelogPostSummary,
+    collect_pages,
     graphql_data,
+    paged_post_list_of,
     post_list_of,
     post_url,
     require_auth,
@@ -36,6 +40,13 @@ from typing import (
     Annotated,
     Any,
 )
+
+
+# 한 번에 받는 수의 서버 상한. v3 `followers`·`followings` 와 v2 `readingList` 는 100개까지 준다 (2026-10-23 실측: velopert
+# 팔로워 limit 100 에 100명, 읽은 글 100개. readingList 는 velog-server 소스로도 100 을 넘으면 'Max limit is 100'). CLI
+# `--limit` 최대와 같아 한 번에 받는다. 커서는 `collect_pages` 가 이어 받는다.
+FOLLOW_LIST_PAGE_SIZE: int = 100
+READING_LIST_PAGE_SIZE: int = 100
 
 
 class VelogComment(BaseModel):
@@ -113,6 +124,7 @@ class VelogFollowList(BaseModel):
     model_config = ConfigDict(extra='forbid')
 
     returned: Annotated[int, Field(description='반환한 사람 수')]
+    next_cursor: Annotated[str | None, Field(description='다음 페이지 커서 (--cursor 로 넘긴다). null 이면 마지막 페이지')] = None
     users: Annotated[list[VelogFollowUser], Field(description='사람 목록')]
 
 
@@ -212,14 +224,28 @@ def get_series(client: VelogClient, username: str, url_slug: str) -> VelogSeries
     )
 
 
-def get_reading_list(client: VelogClient, *, list_type: ReadingListType = 'LIKED', limit: int = 20) -> VelogPostList:
-    """로그인한 사용자가 좋아요한 글(LIKED)이나 읽은 글(READ) 목록. 세션이 필요하다.
+def get_reading_list(
+    client: VelogClient,
+    *,
+    list_type: ReadingListType = 'LIKED',
+    limit: int = 20,
+    cursor: str | None = None,
+) -> VelogPostList:
+    """로그인한 사용자가 좋아요한 글(LIKED)이나 읽은 글(READ) 목록. 세션이 필요하다. 다음 페이지는 `next_cursor` 로 받는다.
 
     readingList 는 v2 가 직접 처리해, 만료된 토큰도 같은 요청 안에서 갱신하고 로그인이 안 됐으면 UNAUTHENTICATED 를
     준다 (2026-10-20 실측). 그래서 앞에 `require_auth` 를 두지 않는다.
     """
-    data = graphql_data(client.run_request_reading_list(list_type, limit))
-    return post_list_of(data.reading_list if data else None)
+    def fetch(size: int, after: str | None) -> list[VelogPostCardModel] | None:
+        data = graphql_data(client.run_request_reading_list(
+            VelogReadingListRequestPayloadModel(type=list_type, limit=size, cursor=after)
+        ))
+        return data.reading_list if data else None
+
+    cards, next_cursor = collect_pages(
+        fetch, limit=limit, page_size=READING_LIST_PAGE_SIZE, cursor=cursor, cursor_of=lambda card: card.id,
+    )
+    return paged_post_list_of(cards, next_cursor)
 
 
 def get_feed(client: VelogClient, *, limit: int = 20) -> VelogPostList:
@@ -228,6 +254,10 @@ def get_feed(client: VelogClient, *, limit: int = 20) -> VelogPostList:
     v3 feedPosts 는 로그인이 안 됐어도 에러 없이 `[]` 를 준다 (2026-10-20 실측). 그대로 두면 무효한 세션이 '피드가
     비었다' 로 보이므로 `require_auth` 로 먼저 막는다. 토큰 갱신 때문은 아니다 — v3 도 만료된 access_token 을 같은
     요청 안에서 갱신한다 (같은 날 실측).
+
+    다음 페이지(`--cursor`)를 두지 않는 것은 일부러다. `FeedPostsInput` 에 cursor 는 있지만 커서가 무엇인지 확인하지 못했다
+    (2026-10-23: 확인한 계정이 아무도 팔로우하지 않아 피드가 비었고, v3 는 소스가 공개돼 있지 않다). 확인하지 않은 커서를 내면
+    글을 건너뛰거나 되풀이해도 알 수 없어, 확인할 때까지 첫 `--limit` 개만 준다.
     """
     require_auth(client)
     data = graphql_data(client.run_request_feed_posts(VelogFeedPostsRequestPayloadModel(limit=limit)))
@@ -247,20 +277,37 @@ def _follow_user_of(model: VelogFollowUserModel) -> VelogFollowUser:
     )
 
 
-def _follow_list_of(models: list[VelogFollowUserModel] | None) -> VelogFollowList:
-    users = [_follow_user_of(model) for model in models or []]
-    return VelogFollowList(returned=len(users), users=users)
+def _follow_list_of(models: list[VelogFollowUserModel], next_cursor: str | None) -> VelogFollowList:
+    users = [_follow_user_of(model) for model in models]
+    return VelogFollowList(returned=len(users), next_cursor=next_cursor, users=users)
 
 
-def get_followers(client: VelogClient, username: str, *, limit: int = 20) -> VelogFollowList:
-    """그 사용자를 팔로우하는 사람들."""
-    payload = VelogFollowListRequestPayloadModel(username=username, limit=limit)
-    data = graphql_data(client.run_request_followers(payload))
-    return _follow_list_of(data.followers if data else None)
+def get_followers(client: VelogClient, username: str, *, limit: int = 20, cursor: str | None = None) -> VelogFollowList:
+    """그 사용자를 팔로우하는 사람들. 다음 페이지는 `next_cursor` 로 받는다.
+
+    커서는 사용자 ID 가 아니라 마지막 사람의 팔로우 관계 ID(응답 `id`)다 (2026-10-23 실측: `userId` 를 주면 404 'Invalid cursor').
+    """
+    def fetch(size: int, after: str | None) -> list[VelogFollowUserModel] | None:
+        data = graphql_data(client.run_request_followers(
+            VelogFollowListRequestPayloadModel(username=username, limit=size, cursor=after)
+        ))
+        return data.followers if data else None
+
+    models, next_cursor = collect_pages(
+        fetch, limit=limit, page_size=FOLLOW_LIST_PAGE_SIZE, cursor=cursor, cursor_of=lambda model: model.id,
+    )
+    return _follow_list_of(models, next_cursor)
 
 
-def get_followings(client: VelogClient, username: str, *, limit: int = 20) -> VelogFollowList:
-    """그 사용자가 팔로우하는 사람들."""
-    payload = VelogFollowListRequestPayloadModel(username=username, limit=limit)
-    data = graphql_data(client.run_request_followings(payload))
-    return _follow_list_of(data.followings if data else None)
+def get_followings(client: VelogClient, username: str, *, limit: int = 20, cursor: str | None = None) -> VelogFollowList:
+    """그 사용자가 팔로우하는 사람들. 커서는 `get_followers` 와 같다."""
+    def fetch(size: int, after: str | None) -> list[VelogFollowUserModel] | None:
+        data = graphql_data(client.run_request_followings(
+            VelogFollowListRequestPayloadModel(username=username, limit=size, cursor=after)
+        ))
+        return data.followings if data else None
+
+    models, next_cursor = collect_pages(
+        fetch, limit=limit, page_size=FOLLOW_LIST_PAGE_SIZE, cursor=cursor, cursor_of=lambda model: model.id,
+    )
+    return _follow_list_of(models, next_cursor)

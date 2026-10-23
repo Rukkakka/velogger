@@ -68,7 +68,7 @@ velog 는 **비밀번호가 없다.** 이메일 매직 링크나 소셜 로그�
 - 목록은 글 **요약**(제목·`username`·`url_slug`·`url`·태그·좋아요 등)만 준다. **본문**이 필요하면 그 글의 `username` 과 `url_slug` 로 `velogger post <username> <url_slug>` 를 부른다 (`body` 가 마크다운).
 - `url_slug` 는 받은 그대로 쓴다 (한글이 들어가기도 한다). `username` 은 `@` 없이 넣는다. slug 가 `-` 로 시작하면 옵션으로 읽히니 앞에 `--` 를 둔다: `velogger post <username> -- <url_slug>`.
 - 목록은 한 번에 50건 이하로 본다 (`--limit`, 최대 100). 글 1건에 설명·메타가 길어 많이 받으면 출력이 커진다.
-- `search` 는 `count`(전체 결과 수)를, `tag` 는 `count`·`next_cursor` 를 함께 준다 (다른 목록에는 이 키가 없다). `tag` 의 다음 페이지는 `next_cursor` 를 `--cursor` 로 넘긴다.
+- `search` 는 `count`(전체 결과 수)를, `tag` 는 `count`·`next_cursor` 를 함께 준다. 다음 페이지는 `tag`·`posts`·`recent`·`liked`·`followers`·`followings` 가 `next_cursor` 를 `--cursor` 로, `search`·`trending` 은 `--offset` 으로 받는다. `next_cursor: null` 은 마지막 페이지다 (키가 없는 목록은 다음 페이지가 없다).
 - **태그별 전역 글**은 `velogger tag <태그>` 로만 받는다 (`posts --tag` 는 그 사용자 글 안에서만 거른다).
 - `recent` 상단엔 스팸 글이 끼기도 한다. velog 서버가 준 결과를 그대로 전하니, 거를지는 호출하는 쪽이 판단한다.
 - `is_private: true` 는 비공개 글(로그인한 본인에게만 보임), `is_temp: true` 는 초안이다 (초안의 `url` 은 편집 주소).

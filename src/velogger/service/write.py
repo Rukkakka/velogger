@@ -362,6 +362,11 @@ def edit_post(
 def get_drafts(client: VelogClient, *, limit: int = 20) -> VelogPostList:
     """로그인한 사용자의 임시저장(초안) 글 목록.
 
+    서버는 초안을 한 번에 100개까지 준다 (velog-server `findTempPosts` 의 `take: limit`, 소스 기준). 다음 페이지(`--cursor`)를
+    두지 않는 것은 일부러다. 같은 소스에서 커서는 `released_at` 으로 거르는데 정렬은 `created_at` 이라, 둘이 다른 초안은
+    건너뛰거나 되풀이될 수 있고, 초안이 없는 계정이라 실측하지 못했다 (2026-10-23). 공개 글의 v2 `posts` 는 마지막 글 id 커서로
+    이어졌다 (같은 날 실측).
+
     Raises:
         VeloggerError: 로그인 안 됨 (`NOT_LOGGED_IN`).
     """
