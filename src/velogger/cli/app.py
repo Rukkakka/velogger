@@ -354,14 +354,14 @@ def _session_client(*, login_required: bool = False) -> Iterator[VelogClient]:
         try:
             yield client
         finally:
-            _persist(client, session.username)
+            _persist(client, session)
 
 
 def _cookie_set(cookies: list[StoredCookie] | None) -> set[tuple[str, str, str, str]]:
     return {(cookie.name, cookie.value, cookie.domain, cookie.path) for cookie in cookies or []}
 
 
-def _persist(client: VelogClient, username: str | None) -> None:
+def _persist(client: VelogClient, loaded: Session) -> None:
     """요청 뒤 갱신된 세션 쿠키(토큰 회전)를 다시 저장한다. 실패해도 명령 결과는 그대로 둔다 (로그만 남긴다).
 
     쓰기만이 아니라 조회 뒤에도 부른다. velog 는 access_token 수명이 30분 아래로 남은 요청이면 조회든 쓰기든 새 토큰을
@@ -380,6 +380,12 @@ def _persist(client: VelogClient, username: str | None) -> None:
     velog 가 쿠키를 모두 지웠을 때도 쓰지 않는다. v3 는 토큰이 잘못됐다고 보면 빈 Set-Cookie 로 쿠키를 지운다 (2026-10-21
     실측: 가짜 토큰 세션으로 recent 를 부르니 쿠키가 모두 지워졌고, v2 는 지우지 않았다). 그대로 쓰면 일시적인 판정에도
     세션 파일이 비어 다시 로그인해야 한다. 세션은 `logout` 으로만 지운다.
+
+    세션 파일이 이 명령이 읽은 때와 달라졌으면 쓰지 않는다. 그 사이 사용자가 `logout` 했거나 다른 계정으로 `login` 했거나,
+    먼저 끝난 다른 velogger 가 갱신한 토큰을 저장한 것이다. 덮으면 로그아웃이 풀리거나 다른 계정 세션이 옛 계정으로 바뀐다
+    (2026-10-23 재현: access_token 을 뺀 세션 사본으로 whoami 를 부르는 도중 logout 하니, 명령이 끝날 때 velog 가 준 새 토큰으로
+    session.json 이 되살아났다). 다른 velogger 가 저장한 토큰도 유효하다 (옛 refresh_token 도 계속 쓰인다). 읽고 쓰는 사이는
+    잠그지 않아 그 틈에 바뀌면 못 막지만, 그 틈은 파일 하나를 읽고 쓰는 동안뿐이다.
     """
     if not client.cookies:
         return
@@ -387,7 +393,10 @@ def _persist(client: VelogClient, username: str | None) -> None:
     if not cookies or _cookie_set(cookies) == _cookie_set(client.cookies):
         return
     try:
-        save_session(Session(cookies=cookies, username=username))
+        if load_session() != loaded:
+            logger.info('명령이 도는 사이 세션 파일이 바뀌어 갱신된 쿠키를 저장하지 않습니다 (logout·login 등)')
+            return
+        save_session(Session(cookies=cookies, username=loaded.username))
     except SessionError as exc:
         logger.warning('갱신된 세션을 저장하지 못했습니다 (결과에는 영향 없음): %s', exc.message)
 

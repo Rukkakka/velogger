@@ -5,13 +5,17 @@ import json
 import logging
 import stat
 import sys
+from functools import cached_property
 
 import httpx
 import pytest
 import typer
 
 from velogger.api.client import VelogClient
-from velogger.cli.app import run
+from velogger.cli.app import (
+    _session_client,
+    run,
+)
 from velogger.cli.output import (
     emit,
     handle_errors,
@@ -24,11 +28,15 @@ from velogger.core.http import (
 from velogger.core.session import (
     Session,
     StoredCookie,
+    clear_session,
     load_session,
     save_session,
     session_path,
 )
-from velogger.service.auth import complete_login_with_code
+from velogger.service.auth import (
+    complete_login_with_code,
+    whoami,
+)
 from velogger.service.common import NOT_LOGGED_IN_HINT
 
 
@@ -202,6 +210,39 @@ def test_logout_removes_session(capsys: pytest.CaptureFixture[str]) -> None:
     run(['logout'])
     capsys.readouterr()
     assert load_session().is_empty()
+
+
+def test_refreshed_cookies_are_saved_but_never_over_a_session_changed_meanwhile(monkeypatch: pytest.MonkeyPatch) -> None:
+    """velog 가 준 새 토큰은 명령이 끝날 때 저장하되, 그 사이 세션 파일이 바뀌었으면(logout·login) 덮지 않는다.
+
+    2026-10-23 재현: 명령 도중 logout 하니 명령이 끝날 때 새 토큰으로 session.json 이 되살아났다. 실제 토큰 갱신으로 재현했고,
+    여기서는 같은 순서를 가짜 응답으로 고정한다 (도중에 logout 하는 타이밍은 CLI 로 매번 재현하기 어렵다).
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={'data': {'auth': {'id': 'u1', 'username': 'me', 'is_trusted': True}}},
+            headers=[('set-cookie', 'access_token=fresh; Domain=.velog.io; Path=/')],
+        )
+
+    class MockedClient(VelogClient):
+        @cached_property
+        def _client(self) -> httpx.Client:
+            return httpx.Client(base_url=self.base_url, cookies=self._cookie_jar(), transport=httpx.MockTransport(handler))
+
+    monkeypatch.setattr('velogger.cli.app.VelogClient', MockedClient)
+    old = Session(cookies=[StoredCookie(name='access_token', value='old')], username='me')
+
+    save_session(old)
+    with _session_client() as client:
+        whoami(client)
+    assert [cookie.value for cookie in load_session().cookies] == ['fresh']
+
+    save_session(old)
+    with _session_client() as client:
+        whoami(client)
+        clear_session()  # 다른 터미널의 `velogger logout`
+    assert not session_path().exists(), '로그아웃이 풀렸다'
 
 
 # --- 가이드 (네트워크 없음) ---
