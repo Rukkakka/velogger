@@ -56,7 +56,7 @@ class Session(BaseModel):
 
     model_config = ConfigDict(extra='forbid')
 
-    cookies: list[StoredCookie] = Field(default_factory=list)
+    cookies: list[StoredCookie] = []
     username: str | None = None
 
     def is_empty(self) -> bool:

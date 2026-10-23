@@ -32,8 +32,8 @@ class VelogRecentPostsDataModel(ResponseModel):
 
     recent_posts: Annotated[
         list[VelogPostCardModel] | None,
-        Field(description='최신 글 카드')
-    ] = Field(default=None, alias='recentPosts')
+        Field(description='최신 글 카드', alias='recentPosts')
+    ] = None
 
 
 class VelogPostsDataModel(ResponseModel):
@@ -54,8 +54,8 @@ class VelogSearchPostsDataModel(ResponseModel):
 
     search_posts: Annotated[
         VelogSearchResultModel | None,
-        Field(description='검색 결과')
-    ] = Field(default=None, alias='searchPosts')
+        Field(description='검색 결과', alias='searchPosts')
+    ] = None
 
 
 class VelogSeriesPostRefModel(ResponseModel):

@@ -22,8 +22,8 @@ class VelogWritePostDataModel(ResponseModel):
 
     write_post: Annotated[
         VelogWrittenPostModel | None,
-        Field(description='저장된 글. v2 가 내부 에러를 삼키면 errors 없이 null')
-    ] = Field(default=None, alias='writePost')
+        Field(description='저장된 글. v2 가 내부 에러를 삼키면 errors 없이 null', alias='writePost')
+    ] = None
 
 
 class VelogEditPostDataModel(ResponseModel):
@@ -31,8 +31,8 @@ class VelogEditPostDataModel(ResponseModel):
 
     edit_post: Annotated[
         VelogWrittenPostModel | None,
-        Field(description='고친 글. v2 가 내부 에러를 삼키면 errors 없이 null')
-    ] = Field(default=None, alias='editPost')
+        Field(description='고친 글. v2 가 내부 에러를 삼키면 errors 없이 null', alias='editPost')
+    ] = None
 
 
 class VelogPostForEditSeriesModel(ResponseModel):
@@ -82,8 +82,8 @@ class VelogLikePostDataModel(ResponseModel):
 
     like_post: Annotated[
         VelogLikeResultModel | None,
-        Field(description='좋아요 결과. 토큰이 만료됐으면 errors 없이 null')
-    ] = Field(default=None, alias='likePost')
+        Field(description='좋아요 결과. 토큰이 만료됐으면 errors 없이 null', alias='likePost')
+    ] = None
 
 
 class VelogUnlikePostDataModel(ResponseModel):
@@ -91,8 +91,8 @@ class VelogUnlikePostDataModel(ResponseModel):
 
     unlike_post: Annotated[
         VelogLikeResultModel | None,
-        Field(description='좋아요 취소 결과. 토큰이 만료됐으면 errors 없이 null')
-    ] = Field(default=None, alias='unlikePost')
+        Field(description='좋아요 취소 결과. 토큰이 만료됐으면 errors 없이 null', alias='unlikePost')
+    ] = None
 
 
 class VelogCommentResultModel(ResponseModel):
@@ -109,8 +109,8 @@ class VelogWriteCommentDataModel(ResponseModel):
 
     write_comment: Annotated[
         VelogCommentResultModel | None,
-        Field(description='단 댓글')
-    ] = Field(default=None, alias='writeComment')
+        Field(description='단 댓글', alias='writeComment')
+    ] = None
 
 
 class VelogStatsDayModel(ResponseModel):
@@ -132,5 +132,5 @@ class VelogStatsDataModel(ResponseModel):
 
     get_stats: Annotated[
         VelogStatsModel | None,
-        Field(description='조회수 통계')
-    ] = Field(default=None, alias='getStats')
+        Field(description='조회수 통계', alias='getStats')
+    ] = None
