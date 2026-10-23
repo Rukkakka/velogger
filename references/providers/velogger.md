@@ -156,7 +156,10 @@ service 는 v3 GraphQL·캐시 응답을 공통 요약 모델(`VelogPostSummary`
 그대로면 다시 쓰지 않는다 — 늘 쓰면 동시에 돈 다른 velogger 가 갱신해 저장한 토큰을 옛 토큰으로 덮는다. velog 가 쿠키를
 모두 지웠을 때도 쓰지 않는다 — v3 는 토큰이 잘못됐다고 보면 빈 Set-Cookie 로 쿠키를 지우는데(2026-10-21 실측: 가짜 토큰
 세션으로 `recent` 를 부르니 쿠키가 모두 지워졌고 v2 `comments`·`whoami` 는 지우지 않았다), 그대로 쓰면 일시적인 판정에도
-세션 파일이 빈다. 세션은 `logout` 으로만 지운다. 세션이 없으면 `whoami` 는 velog 에 묻지 않고 `logged_in: false` 다.
+세션 파일이 빈다. 세션은 `logout` 으로만 지운다. 명령이 도는 사이 세션 파일이 처음 읽은 때와 달라졌어도 쓰지 않는다 — 다른
+터미널의 `logout`·다른 계정 `login`, 먼저 끝난 다른 velogger 의 저장이다. 예전에는 덮어서 로그아웃이 풀렸다 (2026-10-23 재현:
+access_token 을 뺀 세션 사본으로 `whoami` 를 부르는 도중 logout 하니, 끝날 때 새 토큰으로 session.json 이 되살아났다). 세션이
+없으면 `whoami` 는 velog 에 묻지 않고 `logged_in: false` 다.
 
 - **글쓰기·수정**은 `writePost`/`editPost` (`title, body, tags, is_markdown, is_temp, is_private, url_slug,
   thumbnail, meta, series_id, token`). 임시저장은 `is_temp: true`(기본), 발행은 false. `url_slug` 를 안 주면
