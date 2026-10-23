@@ -39,7 +39,9 @@ from velogger.api.request.social import (
 )
 from velogger.api.request.users import VelogGetUserRequestPayloadModel
 from velogger.api.request.write import (
+    VelogAppendToSeriesRequestPayloadModel,
     VelogCreateSeriesRequestPayloadModel,
+    VelogDraftsRequestPayloadModel,
     VelogEditCommentRequestPayloadModel,
     VelogEditPostRequestPayloadModel,
     VelogWriteCommentRequestPayloadModel,
@@ -61,19 +63,13 @@ from velogger.api.response.posts import (
     VelogSearchPostsDataModel,
 )
 from velogger.api.response.social import (
-    VelogAppendToSeriesDataModel,
     VelogCommentRepliesDataModel,
-    VelogCreateSeriesDataModel,
-    VelogEditCommentDataModel,
     VelogFeedPostsDataModel,
-    VelogFollowDataModel,
     VelogFollowersDataModel,
     VelogFollowingsDataModel,
     VelogPostCommentsDataModel,
     VelogReadingListDataModel,
-    VelogRemoveCommentDataModel,
     VelogSeriesDataModel,
-    VelogUnfollowDataModel,
 )
 from velogger.api.response.users import (
     VelogTagDataModel,
@@ -81,10 +77,16 @@ from velogger.api.response.users import (
     VelogUserIdDataModel,
 )
 from velogger.api.response.write import (
+    VelogAppendToSeriesDataModel,
+    VelogCreateSeriesDataModel,
+    VelogEditCommentDataModel,
     VelogEditPostDataModel,
+    VelogFollowDataModel,
     VelogLikePostDataModel,
     VelogPostForEditDataModel,
+    VelogRemoveCommentDataModel,
     VelogStatsDataModel,
+    VelogUnfollowDataModel,
     VelogUnlikePostDataModel,
     VelogWriteCommentDataModel,
     VelogWritePostDataModel,
@@ -886,15 +888,14 @@ class VelogClient(BaseHTTPClient):
     @velog_write_retry
     def run_request_append_to_series(
         self,
-        series_id: str,
-        post_id: str,
+        payload: VelogAppendToSeriesRequestPayloadModel
     ) -> VelogGraphQLResponse[VelogAppendToSeriesDataModel]:
         """Add a post to a series via `POST v2.velog.io/graphql` (`appendToSeries`).
 
         이미 그 시리즈에 든 글이면 errors `CONFLICT`('Already added to series')다 (2026-10-21 실측).
         """
         return VelogGraphQLResponse[VelogAppendToSeriesDataModel].model_validate(
-            self._post_graphql_v2(APPEND_TO_SERIES_MUTATION, {'series_id': series_id, 'post_id': post_id}).json()
+            self._post_graphql_v2(APPEND_TO_SERIES_MUTATION, payload.model_dump(by_alias=True)).json()
         )
 
     @velog_write_retry
@@ -922,9 +923,11 @@ class VelogClient(BaseHTTPClient):
         return response
 
     @velog_retry
-    def run_request_drafts(self, username: str, limit: int) -> VelogGraphQLResponse[VelogPostsDataModel]:
-        """Fetch the logged-in user's draft (temp) posts via `POST v2.velog.io/graphql` (`posts(temp_only: true)`)."""
-        variables = {'username': username, 'temp_only': True, 'limit': limit}
+    def run_request_drafts(self, payload: VelogDraftsRequestPayloadModel) -> VelogGraphQLResponse[VelogPostsDataModel]:
+        """Fetch the logged-in user's draft (temp) posts via `POST v2.velog.io/graphql` (`posts(temp_only: true)`).
+
+        루트 필드 `posts` 가 v3 `run_request_posts` 와 같아 뜻으로 `drafts` 라 부른다.
+        """
         return VelogGraphQLResponse[VelogPostsDataModel].model_validate(
-            self._post_graphql_v2(DRAFTS_QUERY, variables).json()
+            self._post_graphql_v2(DRAFTS_QUERY, payload.model_dump(by_alias=True)).json()
         )

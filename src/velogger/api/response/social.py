@@ -1,4 +1,4 @@
-"""댓글·시리즈·팔로우·피드 응답 모델."""
+"""댓글·시리즈·팔로우 목록·피드·좋아요한 글 조회 응답 모델. 쓰기(mutation) 결과는 `write` 에 있다."""
 
 from pydantic import Field
 
@@ -124,80 +124,4 @@ class VelogReadingListDataModel(ResponseModel):
     reading_list: Annotated[
         list[VelogPostCardModel] | None,
         Field(description='좋아요한 글이나 읽은 글 카드', alias='readingList')
-    ] = None
-
-
-class VelogFollowResultModel(ResponseModel):
-    """`follow`·`unfollow` 결과."""
-
-    id: Annotated[str | None, Field(description='대상 사용자 ID')] = None
-    is_followed: Annotated[bool | None, Field(description='팔로우 상태')] = None
-
-
-class VelogFollowDataModel(ResponseModel):
-    """`follow` mutation 의 data."""
-
-    follow: Annotated[VelogFollowResultModel | None, Field(description='팔로우 결과')] = None
-
-
-class VelogUnfollowDataModel(ResponseModel):
-    """`unfollow` mutation 의 data."""
-
-    unfollow: Annotated[VelogFollowResultModel | None, Field(description='팔로우 취소 결과')] = None
-
-
-class VelogEditedCommentModel(ResponseModel):
-    """`editComment` 결과."""
-
-    id: Annotated[str | None, Field(description='댓글 ID')] = None
-    text: Annotated[str | None, Field(description='고친 내용')] = None
-
-
-class VelogEditCommentDataModel(ResponseModel):
-    """`editComment` mutation 의 data."""
-
-    edit_comment: Annotated[
-        VelogEditedCommentModel | None,
-        Field(description='고친 댓글', alias='editComment')
-    ] = None
-
-
-class VelogRemoveCommentDataModel(ResponseModel):
-    """`removeComment` mutation 의 data (성공하면 true)."""
-
-    remove_comment: Annotated[
-        bool | None,
-        Field(description='지워졌는지', alias='removeComment')
-    ] = None
-
-
-class VelogCreatedSeriesModel(ResponseModel):
-    """`createSeries` 결과."""
-
-    id: Annotated[str | None, Field(description='시리즈 ID')] = None
-    name: Annotated[str | None, Field(description='시리즈 이름')] = None
-    url_slug: Annotated[str | None, Field(description='시리즈 slug')] = None
-    created_at: Annotated[str | None, Field(description='만든 시각 (ISO)')] = None
-
-
-class VelogCreateSeriesDataModel(ResponseModel):
-    """`createSeries` mutation 의 data."""
-
-    create_series: Annotated[
-        VelogCreatedSeriesModel | None,
-        Field(description='만든 시리즈', alias='createSeries')
-    ] = None
-
-
-class VelogAppendToSeriesDataModel(ResponseModel):
-    """`appendToSeries` mutation 의 data. 성공하면 넣은 글의 시리즈 안 순번(1부터)이다.
-
-    velog-server 는 `appendToSeries(...): Int` 로 정의하고 `nextIndex` 를 돌려준다 (velopert/velog-server
-    `src/graphql/series.ts`). bool 로 받으면 첫 글(1)만 통과하고 두 번째 글(2)부터 검증에 실패한다 (2026-10-22 실측: 7편을
-    차례로 넣으니 2편부터 PARSE_ERROR 였는데 모두 들어가 있었다).
-    """
-
-    append_to_series: Annotated[
-        int | None,
-        Field(description='넣은 글의 시리즈 안 순번 (1부터)', alias='appendToSeries')
     ] = None

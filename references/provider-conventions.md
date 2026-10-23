@@ -64,6 +64,11 @@ src/velogger/
 
 - 본문이 있는 엔드포인트(POST REST·GraphQL variables)는 `RequestPayloadModel`, 쿼리·경로만 있으면
   `RequestParameterModel`.
+- **예외: 값 하나만 보내는 요청은 모델 없이 그 값을 인자로 받는다** (`run_request_like_post(post_id)`·`run_request_tag(name)`·
+  `run_request_code(code)` 등 글·댓글·사용자 ID, 태그 이름, 로그인 code 하나). 거를 제약이 없어 모델이 값을 감싸기만 한다.
+  변수가 둘 이상이거나 제약(`limit` 등)이 있으면 모델을 둔다 (`readingList`·`drafts`·`appendToSeries` 는 2026-10-23 에 모델로
+  바꿨다). multipart 업로드(`run_request_upload_image`)도 파일 바이트를 모델에 담지 않아 인자로 받는다. "요청 모델 없는
+  메서드가 있다" 는 지적은 이 예외에 드는 메서드면 오탐이다.
 - `{Action}` 은 PascalCase, 접두어는 `Velog`.
 
 ## Client 클래스

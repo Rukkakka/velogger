@@ -21,7 +21,9 @@ from pydantic import (
 from velogger.api.client import VelogClient
 from velogger.api.request.users import VelogGetUserRequestPayloadModel
 from velogger.api.request.write import (
+    VelogAppendToSeriesRequestPayloadModel,
     VelogCreateSeriesRequestPayloadModel,
+    VelogDraftsRequestPayloadModel,
     VelogEditCommentRequestPayloadModel,
     VelogEditPostRequestPayloadModel,
     VelogWriteCommentRequestPayloadModel,
@@ -381,7 +383,7 @@ def get_drafts(client: VelogClient, *, limit: int = 20) -> VelogPostList:
         VeloggerError: 로그인 안 됨 (`NOT_LOGGED_IN`).
     """
     user = require_auth(client)
-    data = graphql_data(client.run_request_drafts(user.username or '', limit))
+    data = graphql_data(client.run_request_drafts(VelogDraftsRequestPayloadModel(username=user.username or '', limit=limit)))
     return post_list_of(data.posts if data else None)
 
 
@@ -494,7 +496,8 @@ def add_to_series(client: VelogClient, series_id: str, post_id: str) -> VelogSer
     Raises:
         VeloggerError: 이미 그 시리즈에 든 글일 때 (`ALREADY_EXISTS`).
     """
-    data = graphql_data(client.run_request_append_to_series(series_id, post_id))
+    payload = VelogAppendToSeriesRequestPayloadModel(series_id=series_id, post_id=post_id)
+    data = graphql_data(client.run_request_append_to_series(payload))
     index = _written(data.append_to_series if data else None, '시리즈에 넣기(appendToSeries)')
     return VelogSeriesAddResult(series_id=series_id, post_id=post_id, added=True, index=index)
 
