@@ -42,6 +42,7 @@ from velogger.service.common import (
 
 from typing import (
     Annotated,
+    Any,
     TypeVar,
 )
 
@@ -306,8 +307,8 @@ def edit_post(
 
     Raises:
         VeloggerError: 로그인 안 됨 (`NOT_LOGGED_IN`), 글이 없을 때 (`NOT_FOUND`), 남의 글이거나 발행인데 신뢰 계정이
-            아닐 때 (`FORBIDDEN`), 글의 발행·공개 상태를 모를 때 (`PARSE_ERROR`), velog 가 결과를 주지 않았을 때
-            (`UPSTREAM_ERROR`).
+            아닐 때 (`FORBIDDEN`), 바꾸지 않을 칸(본문·발행·공개 상태 등)의 현재 값을 모를 때 (`PARSE_ERROR`), velog 가
+            결과를 주지 않았을 때 (`UPSTREAM_ERROR`).
     """
     # 로그인부터 확인한다. 세션이 무효하면 ReadPostForEdit 가 익명 조회가 돼 본인 초안이 null 로 오고, 그대로 두면
     # NOT_LOGGED_IN 대신 NOT_FOUND('본인 글의 ID 인지 확인') 가 나 에이전트가 엉뚱한 ID 를 찾는다 (2026-10-20 재현).
@@ -330,33 +331,42 @@ def edit_post(
             message=f'본인 글이 아니라 고칠 수 없습니다: {post_id}',
             hint='edit 은 내 글에만 됩니다. id 를 velogger posts <내 아이디>·drafts 결과에서 가져왔는지 확인하세요',
         )
-    # 발행·공개 상태를 모르면 보내지 않는다. editPost 는 보낸 값으로 덮어, 추측해 보내면 발행된 글이 초안이 되거나(공개
-    # 주소 404) 비공개 글이 공개된다. 2026-10-21 실측으로는 내 글·초안 모두 두 값이 왔다.
-    is_temp = False if publish_now else current.is_temp
-    resolved_private = is_private if is_private is not None else current.is_private
-    if is_temp is None or resolved_private is None:
+    # 사용자가 주지 않은 칸은 현재 값을 그대로 보내고, velog 가 그 값을 주지 않았으면 추측해 보내지 않는다. editPost 는 보낸
+    # 값으로 덮어, 추측하면 발행된 글이 초안이 되거나(공개 주소 404) 비공개 글이 공개되고, 빈 값(''·[]·{})으로 채우면 본문·제목·
+    # 태그·요약(meta.short_description)이 지워지거나 제목에서 만든 다른 slug 로 주소가 바뀐다. 모두 되돌릴 수 없다. 썸네일·시리즈만
+    # null 이 '없음' 이라 그대로 보낸다. velog-server 스키마(`entity/Post.ts`)로는 모두 NOT NULL 이고 실측으로도 늘 왔다
+    # (2026-10-21 내 글·초안, 2026-10-23 2018년 글부터 어제 글까지). 그래도 발행·공개 상태와 같은 이유로 막는다.
+    fields: dict[str, Any] = {
+        'title': title if title is not None else current.title,
+        'body': body if body is not None else current.body,
+        'tags': tags if tags is not None else current.tags,
+        'url_slug': url_slug or current.url_slug,
+        'is_markdown': current.is_markdown,
+        'is_temp': False if publish_now else current.is_temp,
+        'is_private': is_private if is_private is not None else current.is_private,
+        'meta': current.meta,
+    }
+    unknown = [name for name, value in fields.items() if value is None]
+    if unknown:
         raise VeloggerError(
             code='PARSE_ERROR',
-            message=f'velog 가 글의 발행·공개 상태를 주지 않아 고치지 않았습니다: {post_id}',
-            hint='모르는 채 보내면 발행 상태나 공개 여부가 바뀔 수 있습니다. velogger 를 업데이트하거나 VELOGGER_DEBUG=1 로 원본 응답을 확인하세요',
+            message=f"velog 가 글의 {', '.join(unknown)} 값을 주지 않아 고치지 않았습니다: {post_id}",
+            hint=(
+                '모르는 값을 추측해 보내면 본문·태그가 지워지거나 발행·공개 상태가 바뀝니다. 제목·본문·태그·slug 는 '
+                '--title·--body(--file)·--tag·--slug 로 직접 주면 그 값을 씁니다. 계속되면 velogger 를 업데이트하거나 '
+                'VELOGGER_DEBUG=1 로 원본 응답을 확인하세요'
+            ),
         )
-    _check_can_publish(user, is_temp=is_temp, already_published=current.is_temp is False)
-    payload = VelogEditPostRequestPayloadModel(
-        id=post_id,
-        title=title if title is not None else (current.title or ''),
-        body=body if body is not None else (current.body or ''),
-        tags=tags if tags is not None else (current.tags or []),
-        is_markdown=current.is_markdown if current.is_markdown is not None else True,
-        is_temp=is_temp,
-        is_private=resolved_private,
-        url_slug=url_slug or current.url_slug or slugify(current.title or 'post'),
-        thumbnail=thumbnail if thumbnail is not None else current.thumbnail,
-        series_id=current.series.id if current.series else None,
-        meta=current.meta or {},
-    )
+    payload = VelogEditPostRequestPayloadModel.model_validate({
+        'id': post_id,
+        'thumbnail': thumbnail if thumbnail is not None else current.thumbnail,
+        'series_id': current.series.id if current.series else None,
+        **fields,
+    })
+    _check_can_publish(user, is_temp=payload.is_temp, already_published=current.is_temp is False)
     data = graphql_data(client.run_request_edit_post(payload))
     written = _written(data.edit_post if data else None, '글 수정(editPost)')
-    return _publish_result(written, is_temp=is_temp, is_private=resolved_private)
+    return _publish_result(written, is_temp=payload.is_temp, is_private=payload.is_private)
 
 
 def get_drafts(client: VelogClient, *, limit: int = 20) -> VelogPostList:
