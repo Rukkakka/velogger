@@ -90,8 +90,8 @@ class VelogFollowUserModel(ResponseModel):
     ] = None
     user_id: Annotated[
         str | None,
-        Field(description='사용자 ID')
-    ] = Field(default=None, alias='userId')
+        Field(description='사용자 ID', alias='userId')
+    ] = None
     username: Annotated[str | None, Field(description='아이디 (@username)')] = None
     is_followed: Annotated[bool | None, Field(description='내가 팔로우 중인지')] = None
     profile: Annotated[VelogProfileModel | None, Field(description='프로필')] = None
@@ -114,8 +114,8 @@ class VelogFeedPostsDataModel(ResponseModel):
 
     feed_posts: Annotated[
         list[VelogPostCardModel] | None,
-        Field(description='팔로우한 사람들의 글 카드. 로그인이 안 됐어도 에러 없이 []')
-    ] = Field(default=None, alias='feedPosts')
+        Field(description='팔로우한 사람들의 글 카드. 로그인이 안 됐어도 에러 없이 []', alias='feedPosts')
+    ] = None
 
 
 class VelogReadingListDataModel(ResponseModel):
@@ -123,8 +123,8 @@ class VelogReadingListDataModel(ResponseModel):
 
     reading_list: Annotated[
         list[VelogPostCardModel] | None,
-        Field(description='좋아요한 글이나 읽은 글 카드')
-    ] = Field(default=None, alias='readingList')
+        Field(description='좋아요한 글이나 읽은 글 카드', alias='readingList')
+    ] = None
 
 
 class VelogFollowResultModel(ResponseModel):
@@ -158,8 +158,8 @@ class VelogEditCommentDataModel(ResponseModel):
 
     edit_comment: Annotated[
         VelogEditedCommentModel | None,
-        Field(description='고친 댓글')
-    ] = Field(default=None, alias='editComment')
+        Field(description='고친 댓글', alias='editComment')
+    ] = None
 
 
 class VelogRemoveCommentDataModel(ResponseModel):
@@ -167,8 +167,8 @@ class VelogRemoveCommentDataModel(ResponseModel):
 
     remove_comment: Annotated[
         bool | None,
-        Field(description='지워졌는지')
-    ] = Field(default=None, alias='removeComment')
+        Field(description='지워졌는지', alias='removeComment')
+    ] = None
 
 
 class VelogCreatedSeriesModel(ResponseModel):
@@ -185,8 +185,8 @@ class VelogCreateSeriesDataModel(ResponseModel):
 
     create_series: Annotated[
         VelogCreatedSeriesModel | None,
-        Field(description='만든 시리즈')
-    ] = Field(default=None, alias='createSeries')
+        Field(description='만든 시리즈', alias='createSeries')
+    ] = None
 
 
 class VelogAppendToSeriesDataModel(ResponseModel):
@@ -199,5 +199,5 @@ class VelogAppendToSeriesDataModel(ResponseModel):
 
     append_to_series: Annotated[
         int | None,
-        Field(description='넣은 글의 시리즈 안 순번 (1부터)')
-    ] = Field(default=None, alias='appendToSeries')
+        Field(description='넣은 글의 시리즈 안 순번 (1부터)', alias='appendToSeries')
+    ] = None

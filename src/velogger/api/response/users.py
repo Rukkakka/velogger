@@ -50,8 +50,8 @@ class VelogUserDataModel(ResponseModel):
     user: Annotated[VelogUserModel | None, Field(description='사용자. 없는 사용자면 null')] = None
     user_tags: Annotated[
         VelogUserTagsModel | None,
-        Field(description='사용자의 태그 목록')
-    ] = Field(default=None, alias='userTags')
+        Field(description='사용자의 태그 목록', alias='userTags')
+    ] = None
 
 
 class VelogUserIdDataModel(ResponseModel):

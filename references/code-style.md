@@ -5,6 +5,7 @@
 [development.md](development.md#검증과-테스트) 에 있다.
 
 §2 따옴표, §3 import 순서·절대 import, §5 타입 힌트는 ruff·mypy 가 검사한다 ([코드 검사](development.md#코드-검사)).
+§4 의 별칭·기본값 위치는 `tests/test_schema.py` 가 검사한다 (ruff·mypy 는 잡지 못한다).
 §3 의 "둘 이상이면 괄호로 여러 줄" 과 나머지 절은 도구가 잡지 못하니 직접 지킨다.
 
 ## 1. 언어
@@ -64,35 +65,57 @@ from typing import (
 
 ## 4. Pydantic 선언
 
-pydantic v2 공식 문서가 권하는 방식을 따른다.
+필드 하나는 `Annotated` 안의 `Field()` 와 대입 위치의 기본값, 두 곳에 나눠 쓴다. pydantic 은 두 곳을
+모두 읽지만 정적 타입 검사기(mypy, Pylance)는 대입 위치만 읽고 그걸로 생성자(`__init__`) 시그니처를 만든다.
+그래서 무엇을 어디에 둘지는 "검사기가 이 값을 알아야 하는가" 로 정한다. pydantic 공식 문서는 두 형식을
+모두 지원하고, 별칭은 "타입 검사기가 별칭 대신 필드 이름을 쓰게 하려면 annotated pattern 을 쓰라" 고 안내한다
+([Fields](https://pydantic.dev/docs/validation/latest/concepts/fields/)). 아래는 이 프로젝트가 고른 규칙이다.
 
-- **제약**(`ge`, `gt`, `min_length`, `max_length`, `pattern`, `exclude`, `repr`, `description`)은
-  `Annotated[T, Field(...)]` 안에 둔다.
-- **`default`, `default_factory`, `alias` 는 `Annotated` 안의 `Field()` 에 넣지 않는다.** 정적 타입 검사기가
-  읽지 못한다. 대입 위치에 둔다.
-- 제약 없는 단순 기본값은 `= value`.
-- `Field(...)`(ellipsis)로 필수를 강조하지 않는다. 어노테이션만 있으면 필수다.
+| 넣을 것 | 위치 | 이유 |
+| --- | --- | --- |
+| 제약 (`ge`, `gt`, `le`, `min_length`, `max_length`, `pattern`), `description`, `exclude`, `repr` | `Annotated` 안 `Field()` | 검사기가 알 필요가 없다. 대입 위치에 두면 필수 필드(`x: int = Field(gt=0)`)도 읽는 사람에게 기본값이 있는 것처럼 보인다 |
+| `alias` | `Annotated` 안 `Field()` | Pylance(pyright)가 읽으면 생성자 인자 이름이 별칭(camelCase)으로 바뀐다. 모델은 `validate_by_name=True` 라 코드에서 필드 이름(snake_case)으로 만든다 |
+| 기본값 | 대입 위치 `= value` | 검사기가 읽어야 선택 인자로 안다 |
+| `default_factory` | 대입 위치 `= Field(default_factory=...)` | 위와 같다. 모델 인스턴스처럼 호출해서 만들어야 하는 기본값에만 쓴다. 대입 위치에 `Field()` 가 남는 유일한 경우 |
+
+- 별칭을 쓰는 모델은 `validate_by_name=True` 인 `RequestModel`·`ResponseModel` 을 상속한다. 이 설정 없이
+  `alias` 를 `Annotated` 안에 두면 검사기는 필드 이름을 받는다고 보는데 런타임은 별칭만 받아 서로 어긋난다.
+- `alias` 위치는 Pylance 에만 영향을 준다. mypy 의 `pydantic.mypy` 플러그인은 `validate_by_name=True` 를 보고
+  위치와 상관없이 필드 이름으로 생성자를 만든다. mypy·ruff 가 잡지 못해 `tests/test_schema.py` 가 대입 위치의 `Field()` 에
+  `default_factory` 말고 다른 인자가 있는지와 별칭이 있는 모델이 필드 이름을 받는지를 검사한다.
+- 별칭은 `alias_generator` 로 자동 생성하지 않고 camelCase 로 오는 필드에만 직접 적는다. velog GraphQL 은 변수·키
+  대부분이 snake_case(`url_slug`, `short_description`)라 camelCase 자동 변환을 켜면 요청을 보낼 때
+  (`model_dump(by_alias=True)`) 변수가 `urlSlug` 처럼 바뀌어 velog 가 받지 못한다 (`writePost` 는 에러 없이 `null` 을
+  준다). 별칭을 적어 두면 원본 키로 코드를 검색할 수도 있다.
+- `Field(...)`(ellipsis)로 필수를 강조하지 않는다. 기본값이 없으면 필수다.
 - `X | None` 은 선택 필드가 아니다. **기본값이 있어야** 선택이다.
+- 목록·집합·딕셔너리 기본값도 값으로 쓴다 (`= []`, `= set()`, `= {}`). pydantic 이 인스턴스마다 복사하므로 공유되지 않는다.
 - 필드 선언은 여러 줄로 쓰고, 모델 필드에는 `description` 을 단다 (CLI 출력 의미가 드러나도록).
 
 ```python
-# 제약 + 설명, 기본값은 대입 위치
+# 제약 + 기본값
 timeout: Annotated[
     int,
     Field(gt=0)
 ] = 20
 
-# 제약 + 별칭 + 기본값
-limit: Annotated[
-    int | None,
-    Field(ge=1, description='최대 결과 수')
-] = Field(default=None, alias='first')
+# 별칭 + 기본값 (camelCase 로 오는 캐시 REST)
+url_slug: Annotated[
+    str | None,
+    Field(description='글 slug', alias='urlSlug')
+] = None
 
 # 필수 필드
 username: Annotated[
     str,
     Field(description='글쓴이 아이디 (@username)')
 ]
+
+# 딕셔너리 기본값
+meta: Annotated[
+    dict[str, Any],
+    Field(description='글 메타 (웹은 short_description 등을 넣는다). 비어 있어도 키는 보낸다')
+] = {}
 
 # 비밀 값
 token: Annotated[

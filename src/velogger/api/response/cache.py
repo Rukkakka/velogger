@@ -14,8 +14,8 @@ class VelogCacheUserModel(ResponseModel):
     username: Annotated[str | None, Field(description='아이디 (@username)')] = None
     display_name: Annotated[
         str | None,
-        Field(description='표시 이름')
-    ] = Field(default=None, alias='displayName')
+        Field(description='표시 이름', alias='displayName')
+    ] = None
     thumbnail: Annotated[str | None, Field(description='프로필 이미지 URL')] = None
 
 
@@ -26,26 +26,26 @@ class VelogCachePostModel(ResponseModel):
     title: Annotated[str | None, Field(description='제목')] = None
     url_slug: Annotated[
         str | None,
-        Field(description='글 slug')
-    ] = Field(default=None, alias='urlSlug')
+        Field(description='글 slug', alias='urlSlug')
+    ] = None
     short_description: Annotated[
         str | None,
-        Field(description='미리보기 설명')
-    ] = Field(default=None, alias='shortDescription')
+        Field(description='미리보기 설명', alias='shortDescription')
+    ] = None
     thumbnail: Annotated[str | None, Field(description='썸네일 URL')] = None
     released_at: Annotated[
         str | None,
-        Field(description='발행 시각 (ISO)')
-    ] = Field(default=None, alias='releasedAt')
+        Field(description='발행 시각 (ISO)', alias='releasedAt')
+    ] = None
     updated_at: Annotated[
         str | None,
-        Field(description='수정 시각 (ISO)')
-    ] = Field(default=None, alias='updatedAt')
+        Field(description='수정 시각 (ISO)', alias='updatedAt')
+    ] = None
     likes: Annotated[int | None, Field(description='좋아요 수')] = None
     comments_count: Annotated[
         int | None,
-        Field(description='댓글 수')
-    ] = Field(default=None, alias='commentsCount')
+        Field(description='댓글 수', alias='commentsCount')
+    ] = None
     user: Annotated[VelogCacheUserModel | None, Field(description='글쓴이')] = None
 
 
@@ -54,11 +54,11 @@ class VelogTagPostsResponseModel(ResponseModel):
 
     tag_name: Annotated[
         str | None,
-        Field(description='태그 이름')
-    ] = Field(default=None, alias='tagName')
+        Field(description='태그 이름', alias='tagName')
+    ] = None
     posts: Annotated[list[VelogCachePostModel] | None, Field(description='태그 글 카드')] = None
     count: Annotated[int | None, Field(description='태그 전체 글 수')] = None
     next_cursor: Annotated[
         str | None,
-        Field(description='다음 페이지 커서')
-    ] = Field(default=None, alias='nextCursor')
+        Field(description='다음 페이지 커서', alias='nextCursor')
+    ] = None

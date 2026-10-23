@@ -35,7 +35,7 @@ class VelogWritePostRequestPayloadModel(RequestModel):
     meta: Annotated[
         dict[str, Any],
         Field(description='글 메타 (웹은 short_description 등을 넣는다). 비어 있어도 키는 보낸다')
-    ] = Field(default_factory=dict)
+    ] = {}
     token: Annotated[
         str | None,
         Field(repr=False, description='Cloudflare Turnstile 토큰. 신뢰 계정은 null (CLI 는 캡차를 풀지 않는다)')
