@@ -70,6 +70,25 @@ class VelogEditCommentRequestPayloadModel(RequestModel):
     text: Annotated[NonBlankStr, Field(description='새 댓글 내용')]
 
 
+class VelogDraftsRequestPayloadModel(RequestModel):
+    """v2 `posts(username, temp_only, limit)` 변수. 내 초안 목록.
+
+    루트 필드가 v3 `posts`(한 사용자 글, `run_request_posts`)와 같아 뜻으로 `drafts` 라 부른다 (provider-conventions 'Action id
+    명명'). 남의 username 이나 익명이면 velog 가 `NO_PERMISSION` 으로 거절한다 (velog-server `posts` 리졸버).
+    """
+
+    username: Annotated[str, Field(description='내 아이디 (require_auth 결과의 username)')]
+    temp_only: Annotated[bool, Field(description='초안만 받는다. drafts 는 늘 true')] = True
+    limit: Annotated[int, Field(ge=1, le=100, description="받을 글 수 (velog-server 는 100 을 넘으면 'Max limit is 100')")] = 20
+
+
+class VelogAppendToSeriesRequestPayloadModel(RequestModel):
+    """v2 `appendToSeries(series_id, post_id)` 변수. 시리즈 맨 뒤에 글을 넣는다."""
+
+    series_id: Annotated[str, Field(description='시리즈 ID')]
+    post_id: Annotated[str, Field(description='넣을 글 ID')]
+
+
 class VelogCreateSeriesRequestPayloadModel(RequestModel):
     """v2 `createSeries` mutation 변수.
 
