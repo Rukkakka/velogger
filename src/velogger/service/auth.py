@@ -71,8 +71,8 @@ class VelogLoginMailResult(BaseModel):
 class VelogWhoami(BaseModel):
     """로그인 상태. 토큰·쿠키 값은 담지 않는다.
 
-    로그인 정보는 로그인 여부·username·is_trusted 만 보여 준다 (AGENTS.md '꼭 지킬 것'). v2 `auth` 가 주는 계정
-    이메일·사용자 ID 는 에이전트 대화 기록·로그에 남으므로 출력 모델로 옮기지 않는다.
+    로그인 정보는 로그인 여부·username·is_trusted 만 보여 준다 (AGENTS.md '꼭 지킬 것'). 계정 이메일은 v2 `auth` 에
+    요청하지 않고, 사용자 ID 는 받지만 에이전트 대화 기록·로그에 남으므로 출력 모델로 옮기지 않는다.
     """
 
     model_config = ConfigDict(extra='forbid')

@@ -143,8 +143,10 @@ velog_write_retry = retry(
 """
 
 # v2 GraphQL `auth` 쿼리. is_trusted 는 v2 의 `auth` 에만 있어(v3 currentUser 에는 없다) whoami 는 v2 를 쓴다.
+# 계정 이메일은 요청하지 않는다. 어디에도 쓰지 않는 개인정보라 받지 않으면 모델·로그에 남을 일도 없다 (2026-10-23 실측: 빼도
+# id·username·is_trusted 가 그대로 왔다). id 는 edit 가 본인 글인지 가릴 때 쓴다.
 AUTH_QUERY: str = (
-    'query { auth { id username email is_trusted profile { display_name thumbnail short_bio } } }'
+    'query { auth { id username is_trusted profile { display_name thumbnail short_bio } } }'
 )
 
 # v3 GraphQL 조회 쿼리. 필드 이름은 velog 스키마 그대로(snake_case).

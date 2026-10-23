@@ -26,7 +26,7 @@ WRITE_POST_KEYS = (
 )
 
 
-AUTH_OK = {'data': {'auth': {'id': 'u1', 'username': 'me', 'email': 'me@example.com', 'is_trusted': True}}}
+AUTH_OK = {'data': {'auth': {'id': 'u1', 'username': 'me', 'is_trusted': True}}}
 
 
 def _mock_client(handler) -> VelogClient:

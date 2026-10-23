@@ -51,11 +51,10 @@ class VelogCodeLoginResponseModel(ResponseModel):
 
 
 class VelogAuthUserModel(ResponseModel):
-    """로그인한 사용자. v2 GraphQL `auth` 쿼리의 결과이자 `code` 로그인 응답 본문의 사용자."""
+    """로그인한 사용자. v2 GraphQL `auth` 쿼리의 결과 (계정 이메일은 요청하지 않는다, `AUTH_QUERY`)."""
 
-    id: Annotated[str | None, Field(description='사용자 ID (UUID)')] = None
+    id: Annotated[str | None, Field(description='사용자 ID (UUID). edit 가 본인 글인지 가릴 때 쓴다. 출력하지 않는다')] = None
     username: Annotated[str | None, Field(description='velog 아이디 (@username)')] = None
-    email: Annotated[str | None, Field(repr=False, description='계정 이메일')] = None
     is_trusted: Annotated[
         bool | None,
         Field(description='신뢰 계정 여부. False 면 글 발행에 Cloudflare Turnstile 캡차가 붙는다')

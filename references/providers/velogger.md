@@ -82,10 +82,11 @@ velog 는 비밀번호가 없다. 흐름:
 
 ### whoami 와 is_trusted
 
-로그인 사용자 조회는 **v2 GraphQL `auth`** 를 쓴다 (`{ auth { id username email is_trusted profile {...} } }`).
+로그인 사용자 조회는 **v2 GraphQL `auth`** 를 쓴다 (`{ auth { id username is_trusted profile {...} } }`).
 `is_trusted` 는 v2 `auth` 에만 있고 v3 `currentUser` 에는 없어서 v2 를 쓴다. 로그인 안 했으면 `data.auth` 가
-null (또는 `errors` 에 `UNAUTHENTICATED`) — 둘 다 "로그인 안 됨" 으로 본다. 응답의 `id`·`email` 은 받아도
-출력하지 않는다 (`whoami`·`login` 결과는 `logged_in`·`username`·`is_trusted` 만, AGENTS.md '꼭 지킬 것').
+null (또는 `errors` 에 `UNAUTHENTICATED`) — 둘 다 "로그인 안 됨" 으로 본다. 응답의 `id` 는 받아도(`edit` 의 본인 글 확인)
+출력하지 않는다 (`whoami`·`login` 결과는 `logged_in`·`username`·`is_trusted` 만, AGENTS.md '꼭 지킬 것'). 계정 이메일은 쓰는
+곳이 없어 요청하지 않는다 (예전에는 받아 두기만 했다. 2026-10-23 실측: 빼도 나머지는 그대로 온다).
 
 ## 조회
 
