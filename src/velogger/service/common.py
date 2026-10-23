@@ -1,6 +1,7 @@
 """두 모듈 이상이 쓰는 결과 모델·변환·GraphQL 에러 처리."""
 
 import re
+from collections.abc import Callable
 
 from pydantic import (
     BaseModel,
@@ -28,6 +29,7 @@ from typing import (
 
 
 _Data = TypeVar('_Data')
+_Item = TypeVar('_Item')
 
 VELOG_BASE: str = 'https://velog.io'
 UNAUTHENTICATED_CODE: str = 'UNAUTHENTICATED'
@@ -250,16 +252,19 @@ def summary_of_cache(post: VelogCachePostModel) -> VelogPostSummary:
 class VelogPostList(BaseModel):
     """글 목록 결과. `returned` 는 실제 반환 수다.
 
-    `count`·`next_cursor` 는 그 값을 주는 명령(`count` 는 search·tag, `next_cursor` 는 tag)만 키가 있다. 다른 명령은
-    해당 없음이라 키를 뺀다. 늘 `null` 로 두면 tag 에서 '마지막 페이지' 를 뜻하는 `next_cursor: null` 과 구별되지 않아,
-    페이지가 없는 명령의 결과를 '더 없음' 으로 읽게 된다.
+    `count`·`next_cursor` 는 그 값을 주는 명령(`count` 는 search·tag, `next_cursor` 는 커서로 다음 페이지를 받는
+    tag·posts·recent·liked)만 키가 있다. 다른 명령은 해당 없음이라 키를 뺀다. 늘 `null` 로 두면 '마지막 페이지' 를 뜻하는
+    `next_cursor: null` 과 구별되지 않아, 페이지가 없는 명령의 결과를 '더 없음' 으로 읽게 된다.
     """
 
     model_config = ConfigDict(extra='forbid')
 
     returned: Annotated[int, Field(description='이번에 반환한 글 수')]
     count: Annotated[int | None, Field(description='전체 개수 (search·tag 만 키가 있다. null 은 모름)')] = None
-    next_cursor: Annotated[str | None, Field(description='다음 페이지 커서 (tag 만 키가 있다. null 이면 마지막 페이지)')] = None
+    next_cursor: Annotated[
+        str | None,
+        Field(description='다음 페이지 커서 (tag·posts·recent·liked 만 키가 있다. null 이면 마지막 페이지)')
+    ] = None
     posts: Annotated[list[VelogPostSummary], Field(description='글 목록')]
 
     @model_serializer(mode='wrap')
@@ -275,3 +280,41 @@ def post_list_of(cards: list[VelogPostCardModel] | None) -> VelogPostList:
     """GraphQL 글 카드 목록을 페이지 정보 없는 목록 결과로. velog 가 목록을 주지 않으면(null) 빈 목록으로 낸다."""
     summaries = [summary_of_card(card) for card in cards or []]
     return VelogPostList(returned=len(summaries), posts=summaries)
+
+
+def paged_post_list_of(cards: list[VelogPostCardModel], next_cursor: str | None) -> VelogPostList:
+    """커서로 다음 페이지를 받는 글 목록 결과. `next_cursor` 는 null(마지막 페이지)이어도 키를 둔다."""
+    summaries = [summary_of_card(card) for card in cards]
+    return VelogPostList(returned=len(summaries), next_cursor=next_cursor, posts=summaries)
+
+
+def collect_pages(
+    fetch: Callable[[int, str | None], list[_Item] | None],
+    *,
+    limit: int,
+    page_size: int,
+    cursor: str | None,
+    cursor_of: Callable[[_Item], str | None],
+) -> tuple[list[_Item], str | None]:
+    """커서 페이지를 `limit` 개까지 이어 받는다. (받은 항목, 다음 커서)를 돌려주고, 다음 커서가 None 이면 마지막 페이지다.
+
+    `fetch(개수, 커서)` 는 한 페이지를 받는다. 서버가 한 번에 `page_size` 개까지만 주는 목록(v3 `posts` 는 50개)도 `--limit`
+    만큼 채운다. 예전에는 `posts --limit 100` 이 말없이 50개만 줬다 (2026-10-23 실측: lcs3947 의 글 64개 중 50개).
+
+    - 요청한 수보다 적게 오면 마지막 페이지로 보고 멈춘다 (다음 커서 None). 그래서 `page_size` 는 서버가 실제로 주는 수와
+      같거나 작아야 한다. 크면 상한만큼 온 첫 페이지를 마지막으로 읽는다.
+    - 요청한 수보다 많이 오면 요청한 만큼만 남기고, 남긴 마지막 항목을 커서로 쓴다. 태그로 거른 v3 `posts` 는 limit 을 무시하고
+      20개를 준다 (2026-10-23 실측). 커서는 '그 항목 다음' 이라 버린 항목은 다음 페이지에 다시 온다.
+    - 꽉 찬 페이지로 `limit` 을 채우면 마지막 항목의 커서를 다음 커서로 준다. 그 뒤에 글이 없으면 다음 요청이 빈 목록이다.
+    - 마지막 항목에 커서가 없거나 커서가 나아가지 않으면(같은 값) 멈춘다 (같은 페이지를 되풀이하지 않게).
+    """
+    items: list[_Item] = []
+    while len(items) < limit:
+        want = min(page_size, limit - len(items))
+        page = (fetch(want, cursor) or [])[:want]
+        items.extend(page)
+        last = cursor_of(page[-1]) if page else None
+        if len(page) < want or last is None or last == cursor:
+            return items, None
+        cursor = last
+    return items, cursor

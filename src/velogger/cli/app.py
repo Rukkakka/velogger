@@ -241,6 +241,7 @@ def limits_command(
 
 
 LimitOption = Annotated[int, typer.Option(min=1, max=100, help='받을 글 수 (최대 100)')]
+CursorOption = Annotated[str | None, typer.Option('--cursor', help='다음 페이지 커서 (이전 결과의 next_cursor)')]
 
 
 @app.command('trending')
@@ -256,10 +257,10 @@ def trending_command(
 
 
 @app.command('recent')
-def recent_command(limit: LimitOption = 20, pretty: PrettyOption = None) -> None:
-    """최신 글 목록. 상단에 스팸이 끼기도 한다 (velog 서버 결과를 그대로 전한다)."""
+def recent_command(limit: LimitOption = 20, cursor: CursorOption = None, pretty: PrettyOption = None) -> None:
+    """최신 글 목록. 상단에 스팸이 끼기도 한다 (velog 서버 결과를 그대로 전한다). 다음 페이지는 next_cursor 를 --cursor 로."""
     with handle_errors(), _session_client() as client:
-        emit(get_recent(client, limit=limit), pretty)
+        emit(get_recent(client, limit=limit, cursor=cursor), pretty)
 
 
 @app.command('search')
@@ -280,11 +281,12 @@ def posts_command(
     username: Annotated[str, typer.Argument(help='글쓴이 아이디 (@ 없이)')],
     tag: Annotated[str | None, typer.Option('--tag', help='이 사용자 글 중 태그 필터')] = None,
     limit: LimitOption = 20,
+    cursor: CursorOption = None,
     pretty: PrettyOption = None,
 ) -> None:
-    """한 사용자의 글 목록. 전역 태그 검색은 velogger tag <name> 을 쓴다."""
+    """한 사용자의 글 목록. 다음 페이지는 next_cursor 를 --cursor 로. 전역 태그 검색은 velogger tag <name> 을 쓴다."""
     with handle_errors(), _session_client() as client:
-        emit(get_user_posts(client, username, tag=tag, limit=limit), pretty)
+        emit(get_user_posts(client, username, tag=tag, limit=limit, cursor=cursor), pretty)
 
 
 @app.command('post')
@@ -316,7 +318,7 @@ def user_command(
 def tag_command(
     name: Annotated[str, typer.Argument(help='태그 이름')],
     limit: LimitOption = 20,
-    cursor: Annotated[str | None, typer.Option('--cursor', help='다음 페이지 커서 (이전 결과의 next_cursor)')] = None,
+    cursor: CursorOption = None,
     pretty: PrettyOption = None,
 ) -> None:
     """태그별 글 목록(+태그 설명). 전체 글 수는 count, 다음 페이지는 결과의 next_cursor 를 --cursor 로 넘긴다."""
@@ -589,22 +591,24 @@ def series_command(
 def followers_command(
     username: Annotated[str, typer.Argument(help='사용자 아이디 (@ 없이)')],
     limit: LimitOption = 20,
+    cursor: CursorOption = None,
     pretty: PrettyOption = None,
 ) -> None:
-    """그 사용자를 팔로우하는 사람 목록."""
+    """그 사용자를 팔로우하는 사람 목록. 다음 페이지는 next_cursor 를 --cursor 로."""
     with handle_errors(), _session_client() as client:
-        emit(get_followers(client, username, limit=limit), pretty)
+        emit(get_followers(client, username, limit=limit, cursor=cursor), pretty)
 
 
 @app.command('followings')
 def followings_command(
     username: Annotated[str, typer.Argument(help='사용자 아이디 (@ 없이)')],
     limit: LimitOption = 20,
+    cursor: CursorOption = None,
     pretty: PrettyOption = None,
 ) -> None:
-    """그 사용자가 팔로우하는 사람 목록."""
+    """그 사용자가 팔로우하는 사람 목록. 다음 페이지는 next_cursor 를 --cursor 로."""
     with handle_errors(), _session_client() as client:
-        emit(get_followings(client, username, limit=limit), pretty)
+        emit(get_followings(client, username, limit=limit, cursor=cursor), pretty)
 
 
 @app.command('feed')
@@ -619,11 +623,12 @@ def feed_command(limit: LimitOption = 20, pretty: PrettyOption = None) -> None:
 def liked_command(
     read: Annotated[bool, typer.Option('--read', help='좋아요한 글 대신 읽은 글 목록')] = False,
     limit: LimitOption = 20,
+    cursor: CursorOption = None,
     pretty: PrettyOption = None,
 ) -> None:
-    """내가 좋아요한 글 목록 (--read 면 읽은 글). 로그인이 필요하다."""
+    """내가 좋아요한 글 목록 (--read 면 읽은 글). 로그인이 필요하다. 다음 페이지는 next_cursor 를 --cursor 로."""
     with handle_errors(), _session_client(login_required=True) as client:
-        result = get_reading_list(client, list_type='READ' if read else 'LIKED', limit=limit)
+        result = get_reading_list(client, list_type='READ' if read else 'LIKED', limit=limit, cursor=cursor)
         emit(result, pretty)
 
 

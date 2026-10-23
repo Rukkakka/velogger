@@ -116,8 +116,26 @@ service 는 v3 GraphQL·캐시 응답을 공통 요약 모델(`VelogPostSummary`
   배열이고 `tag.posts_count` 도 0 으로 오므로, 캐시 REST `cache.velcdn.com/api/tag-posts?tag=&limit=&cursor=` 를
   쓴다 (camelCase: `urlSlug`, `shortDescription`, `nextCursor`). `tag` 명령은 이 둘을 합쳐 낸다. 전체 글 수는 캐시의
   `count` 로만 내고 `tag.posts_count` 는 출력하지 않는다 (2026-10-20 실측: react 가 `posts_count: 0` 옆에 `count: 56891`).
-- **목록의 `count`·`next_cursor`** 는 그 값을 주는 명령에만 키가 있다 (`count` 는 search·tag, `next_cursor` 는 tag).
-  늘 `null` 로 내면 tag 의 '마지막 페이지(`next_cursor: null`)' 와 구별되지 않았다.
+- **목록의 `count`·`next_cursor`** 는 그 값을 주는 명령에만 키가 있다 (`count` 는 search·tag, `next_cursor` 는 tag 와 커서로
+  이어 받는 posts·recent·liked·followers·followings). 늘 `null` 로 내면 '마지막 페이지(`next_cursor: null`)' 와 구별되지 않았다.
+- **한 번에 받는 수의 서버 상한과 커서** (2026-10-23 실측, `limit=100` 을 보내 본 수):
+
+  | 목록 | 상한 | 커서 | CLI |
+  | --- | --- | --- | --- |
+  | v3 `posts`(한 사용자) | **50** (velog-server `findPostsByUserId` 의 `Math.min(50, size)`). **`tag` 로 거르면 limit 을 무시하고 늘 20** | 마지막 글 `id` | `posts` — 상한보다 큰 `--limit` 은 나눠 받고, 많이 오면 `--limit` 만큼만 남긴다 |
+  | v3 `recentPosts` | 100 | 마지막 글 `id` | `recent` |
+  | v3 `followers`·`followings` | 100 | 마지막 사람의 **팔로우 관계 `id`** (`userId` 를 주면 404 `Invalid cursor`) | `followers`·`followings` |
+  | v2 `readingList` | 100 (넘으면 `BAD_REQUEST` 'Max limit is 100') | 마지막 글 `id` (READ 실측, LIKED 는 소스 기준) | `liked` |
+  | v2 `posts(temp_only)` | 100 (소스 기준) | 소스상 커서는 `released_at`, 정렬은 `created_at` | `drafts` — 커서 없음 |
+  | v3 `feedPosts` | 확인 못 함 | 확인 못 함 (피드가 빈 계정) | `feed` — 커서 없음 |
+  | v3 `searchPosts`·캐시 trending·tag-posts | 99·100·90 (search·tag 는 서버가 거른 듯 100 아래) | offset·offset·`nextCursor` | `search`·`trending`·`tag` |
+
+  예전에는 `posts` 에 커서가 없어 `posts --limit 100` 이 말없이 50개만 줬고 (lcs3947 의 글 64개 중 50개), `--tag` 를 주면
+  `--limit 4` 에 20개가 오고 `--limit 100` 은 20개에서 끝났다 (python 글 32개). 커서를 주는 목록의
+  `next_cursor` 는 velogger 가 만든다: 요청한 수보다 적게 오면 마지막 페이지(`null`), 꽉 차면 마지막 항목의 커서
+  (`service/common.py` 의 `collect_pages`). 그래서 `*_PAGE_SIZE` 는 서버 상한보다 크면 안 된다 — 크면 상한만큼 온 첫 페이지를
+  마지막으로 읽는다. `drafts`·`feed` 에 커서가 없는 것은 확인하지 못해서다 (확인하지 않은 커서는 글을 건너뛰거나 되풀이해도
+  알 수 없다). "목록이 100개 넘게 못 받는다" 는 지적은 이 둘에만 남은 의도된 한계다.
 - **목록의 `is_temp`** 는 v3 `posts`·`recentPosts`·`feedPosts`, v2 `readingList`·`posts(temp_only)` 가 준다 (2026-10-20
   실측. `searchPosts` 는 null 을, 캐시 trending·tag-posts 는 키 자체를 안 준다). 초안의 공개 주소는 404 라
   (`drafts` 가 준 주소로 `post` 를 부르면 `NOT_FOUND`) 초안의 `url` 은 편집 주소 `velog.io/write?id=` 다.

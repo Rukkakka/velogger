@@ -32,9 +32,9 @@ from velogger.api.request.posts import (
     VelogSearchPostsRequestPayloadModel,
 )
 from velogger.api.request.social import (
-    ReadingListType,
     VelogFeedPostsRequestPayloadModel,
     VelogFollowListRequestPayloadModel,
+    VelogReadingListRequestPayloadModel,
     VelogSeriesRequestPayloadModel,
 )
 from velogger.api.request.users import VelogGetUserRequestPayloadModel
@@ -806,16 +806,11 @@ class VelogClient(BaseHTTPClient):
     @velog_retry
     def run_request_reading_list(
         self,
-        list_type: ReadingListType,
-        limit: int,
-        cursor: str | None = None,
+        payload: VelogReadingListRequestPayloadModel
     ) -> VelogGraphQLResponse[VelogReadingListDataModel]:
         """Fetch the logged-in user's liked/read posts via `POST v2.velog.io/graphql` (`readingList`). 세션 필요."""
-        variables: dict[str, Any] = {'type': list_type, 'limit': limit}
-        if cursor:
-            variables['cursor'] = cursor
         return VelogGraphQLResponse[VelogReadingListDataModel].model_validate(
-            self._post_graphql_v2(READING_LIST_QUERY, variables).json()
+            self._post_graphql_v2(READING_LIST_QUERY, payload.model_dump(by_alias=True, exclude_none=True)).json()
         )
 
     @velog_retry

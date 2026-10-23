@@ -5,6 +5,16 @@ velogger 의 버전별 변경 기록. 사용자(에이전트 포함)에게 보�
 
 ## Unreleased
 
+### 추가
+
+- `posts`·`recent`·`liked`·`followers`·`followings` 에 `--cursor` 와 결과의 `next_cursor`(다음 페이지, `null` 이면 마지막 페이지).
+  예전에는 첫 `--limit` 개(최대 100) 뒤의 글·사람을 받을 방법이 없었다 (#24)
+
+### 수정
+
+- `posts --limit` 이 50보다 크면 50개만 오던 문제. velog 가 한 번에 50개까지만 줘서, 이제 나눠 받아 `--limit` 만큼 채운다 (#24)
+- `posts --tag` 가 `--limit` 과 상관없이 20개를 주던 문제 (`--limit 4` 면 20개가 왔고 `--limit 100` 이면 20개에서 끝났다) (#24)
+
 ## 0.2.0 — 2026-10-22
 
 ### 추가

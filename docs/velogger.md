@@ -49,8 +49,10 @@
             "likes": null, "comments_count": 2, "is_private": false, "is_temp": null}]}
 ```
 
-- `returned` 는 이번에 받은 수다. `count`(전체 수)는 `search`·`tag` 에만, `next_cursor`(다음 페이지, `tag` 의 `--cursor` 로
-  넘긴다)는 `tag` 에만 키가 있다. `tag` 의 `next_cursor: null` 은 마지막 페이지다.
+- `returned` 는 이번에 받은 수다. `count`(전체 수)는 `search`·`tag` 에만, `next_cursor`(다음 페이지. 그대로 `--cursor` 로
+  넘긴다)는 `tag`·`posts`·`recent`·`liked` 에만 키가 있다 (`followers`·`followings` 에도 있다). `next_cursor: null` 은 마지막
+  페이지다. `next_cursor` 가 있는데 다음 페이지가 빈 목록일 수도 있다 (마지막 페이지가 마침 `--limit` 개였을 때).
+  `trending`·`search` 는 `--offset`, `drafts`·`feed` 는 첫 `--limit` 개(최대 100)만 받는다.
 - `is_private`·`is_temp` 는 비공개·임시저장(초안) 여부다. 초안은 공개 주소가 없어 `url` 이 편집 주소(`velog.io/write?id=...`)다.
 - **본문은 요약에 없다.** 글을 읽으려면 그 글의 `username` 과 `url_slug` 로 `post` 를 부른다.
 - 소스마다 빠지는 필드가 있다 (`search` 는 `updated_at`·`likes` 를 안 주고 `null`). `null` 은 모름이다.
@@ -69,7 +71,8 @@ velogger trending --period month --limit 10
 
 ## `recent` — 최신 글
 
-`--limit` 만 받는다. 상단에 스팸 글이 끼기도 한다 — velog 서버 결과를 그대로 전하므로, 거를지는 호출하는 쪽이 판단한다.
+`--limit`(최대 100)과 `--cursor`(이전 결과의 `next_cursor`)를 받는다. 상단에 스팸 글이 끼기도 한다 — velog 서버 결과를
+그대로 전하므로, 거를지는 호출하는 쪽이 판단한다.
 
 ## `search` — 글 검색
 
@@ -89,8 +92,15 @@ velogger trending --period month --limit 10
 | `USERNAME` | 글쓴이 아이디 (@ 없이) | 필수 |
 | `--tag` | 이 사용자 글 중 태그로 거르기 | 전체 |
 | `--limit` | 받을 글 수 (최대 100) | 20 |
+| `--cursor` | 다음 페이지 커서 (이전 결과의 `next_cursor`) | 첫 페이지 |
 
-`--tag` 는 그 사용자의 글 안에서만 거른다. 태그로 **전역** 글을 찾으려면 `tag` 를 쓴다.
+`--tag` 는 그 사용자의 글 안에서만 거른다. 태그로 **전역** 글을 찾으려면 `tag` 를 쓴다. 글이 `--limit` 보다 많으면
+`next_cursor` 를 `--cursor` 로 넘겨 이어 받는다 (velog 는 한 번에 50개, `--tag` 를 주면 20개까지만 줘서 `--limit` 이 그보다 크면 velogger 가 나눠 받는다).
+
+```bash
+velogger posts velopert --limit 100
+velogger posts velopert --limit 100 --cursor <이전 결과의 next_cursor>
+```
 
 ## `post` — 글 본문
 
@@ -151,13 +161,14 @@ velogger tag react --limit 20 --cursor <이전 결과의 next_cursor>
 
 ## `followers` / `followings`
 
-`velogger followers <username>` · `velogger followings <username>` (`--limit`). 각 사람의 `user_id`·`username`·
-`display_name`·`short_bio`·`url` 과, 로그인했다면 `is_followed`(내가 팔로우 중인지)를 준다.
+`velogger followers <username>` · `velogger followings <username>` (`--limit`·`--cursor`). 각 사람의 `user_id`·`username`·
+`display_name`·`short_bio`·`url` 과, 로그인했다면 `is_followed`(내가 팔로우 중인지)를 준다. 결과의 `next_cursor` 를
+`--cursor` 로 넘기면 다음 페이지다 (`null` 이면 마지막 페이지). 커서는 `user_id` 가 아니다 — `next_cursor` 를 그대로 쓴다.
 
 ## `feed` / `liked` (로그인 필요)
 
-- `velogger feed` — 내가 팔로우한 사람들의 최신 글
-- `velogger liked` — 내가 좋아요한 글. `--read` 를 주면 읽은 글 목록
+- `velogger feed` — 내가 팔로우한 사람들의 최신 글 (`--limit` 만. 첫 페이지만 받는다)
+- `velogger liked` — 내가 좋아요한 글. `--read` 를 주면 읽은 글 목록 (`--limit`·`--cursor`)
 
 둘 다 [글 목록 공통 모양](#글-목록의-공통-모양)으로 돌려준다.
 
@@ -210,7 +221,7 @@ PowerShell 5·옛 메모장이 붙인다)은 떼고 읽는다.
 
 ### `drafts` — 내 초안
 
-내 임시저장 글을 [글 목록 공통 모양](#글-목록의-공통-모양)으로 돌려준다. `--limit` 만 받는다.
+내 임시저장 글을 [글 목록 공통 모양](#글-목록의-공통-모양)으로 돌려준다. `--limit`(최대 100)만 받고 다음 페이지는 없다.
 
 ### `like` / `unlike` — 좋아요
 
