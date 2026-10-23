@@ -87,9 +87,13 @@ STEPS: tuple[Step, ...] = (
     # 태그 글은 GraphQL 이 아니라 CDN 캐시 REST 다. 다음 페이지(--cursor)도 같은 캐시에 커서를 넘기는 경로라 함께 본다
     Step('태그 react', ('tag',), ('react', '--limit', '3'), 'posts', (Capture('tag_cursor', 'next_cursor'),)),
     Step('태그 react 다음 페이지', ('tag',), ('react', '--limit', '3', '--cursor', '{tag_cursor}'), 'posts'),
-    Step('사용자 글 velopert', ('posts',), ('velopert', '--limit', '3'), 'posts'),
+    # 다음 페이지는 마지막 글 id 를 커서로 넘기는 v3 경로다 (posts 는 한 번에 50개까지라 커서가 없으면 그 뒤 글을 못 받는다)
+    Step('사용자 글 velopert', ('posts',), ('velopert', '--limit', '3'), 'posts', (Capture('posts_cursor', 'next_cursor'),)),
+    Step('사용자 글 velopert 다음 페이지', ('posts',), ('velopert', '--limit', '3', '--cursor', '{posts_cursor}'), 'posts'),
     Step('사용자 velopert', ('user',), ('velopert',), 'username', (Capture('series_slug', 'url', 'series', after='/series/'),)),
-    Step('팔로워 velopert', ('followers',), ('velopert', '--limit', '3'), 'users'),
+    # 팔로워 커서는 사용자 id 가 아니라 팔로우 관계 id 다 (2026-10-23 실측: userId 면 404 Invalid cursor). 바뀌면 여기서 드러난다
+    Step('팔로워 velopert', ('followers',), ('velopert', '--limit', '3'), 'users', (Capture('followers_cursor', 'next_cursor'),)),
+    Step('팔로워 velopert 다음 페이지', ('followers',), ('velopert', '--limit', '3', '--cursor', '{followers_cursor}'), 'users'),
     Step('팔로잉 velopert', ('followings',), ('velopert', '--limit', '3'), 'users'),
     Step('글 본문', ('post',), ('--', '{username}', '{url_slug}'), 'body'),
     # 트렌딩 글에 댓글이 없을 수 있어 목록이 아니라 post_id 로 본다 (v2 경로가 응답하는지). --replies 로 대댓글 조회

@@ -88,10 +88,10 @@ Windows 는 `.venv/bin/pytest` 대신 `.venv\Scripts\pytest` 로 부른다.
 04:17 에 조회 명령을 실제로 부른다 ([scripts/monitor/api_check.py](../scripts/monitor/api_check.py)). jibsa 의 감시를 옮긴 것이고,
 소스가 하나라 러너를 나누지 않는다. CI 는 여전히 실제 API 를 부르지 않는다.
 
-- **무엇을 부르나:** 로그인 없이 되는 조회만 (`trending`·`recent`·`search`·`tag`(첫 페이지·`--cursor` 다음 페이지)·`posts`·`user`·
-  `followers`·`followings`·`post`·`comments --replies`·`series`). `comments` 는 `--replies` 로 대댓글 조회(`ReloadReplies`)까지 본다
+- **무엇을 부르나:** 로그인 없이 되는 조회만 (`trending`·`recent`·`search`·`tag`·`posts`·`followers`(셋은 첫 페이지·`--cursor` 다음 페이지)·`user`·
+  `followings`·`post`·`comments --replies`·`series`). `comments` 는 `--replies` 로 대댓글 조회(`ReloadReplies`)까지 본다
   (그 글에 대댓글이 있는 댓글이 없으면 그날은 대댓글 요청이 나가지 않는다). `post`·`comments` 는 `trending` 에서 셋이 모두 있는 첫 글의 `username`·`url_slug`·`id` 를 (값마다 다른 글에서 꺼내면 없는 글을 불러 거짓 고장이 난다),
-  `series` 는 `user velopert` 의 첫 시리즈를, 태그 다음 페이지는 첫 페이지의 `next_cursor` 를 이어 받는다 (`Step.captures`, slug 를
+  `series` 는 `user velopert` 의 첫 시리즈를, 다음 페이지(태그·사용자 글·팔로워)는 첫 페이지의 `next_cursor` 를 이어 받는다 (`Step.captures`, slug 를
   박아 두면 이름이 바뀔 때 거짓 고장이 난다). 결과가 0건일 리 없는 곳(트렌딩·`python`·`react`·velopert)만 부르고 `--limit` 은 작게 준다.
   **로그인·쓰기(`publish`·`like`·`comment` 등)와 로그인이 필요한 조회(`feed`·`liked` 등)는 넣지 않는다** — 실제
   부작용이 있거나 CI 에 세션이 없다. 넣지 않는 명령은 `api_check.py` 의 `NOT_MONITORED` 에 이유와 함께 적는다.
