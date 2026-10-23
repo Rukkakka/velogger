@@ -61,19 +61,13 @@ from velogger.api.response.posts import (
     VelogSearchPostsDataModel,
 )
 from velogger.api.response.social import (
-    VelogAppendToSeriesDataModel,
     VelogCommentRepliesDataModel,
-    VelogCreateSeriesDataModel,
-    VelogEditCommentDataModel,
     VelogFeedPostsDataModel,
-    VelogFollowDataModel,
     VelogFollowersDataModel,
     VelogFollowingsDataModel,
     VelogPostCommentsDataModel,
     VelogReadingListDataModel,
-    VelogRemoveCommentDataModel,
     VelogSeriesDataModel,
-    VelogUnfollowDataModel,
 )
 from velogger.api.response.users import (
     VelogTagDataModel,
@@ -81,10 +75,16 @@ from velogger.api.response.users import (
     VelogUserIdDataModel,
 )
 from velogger.api.response.write import (
+    VelogAppendToSeriesDataModel,
+    VelogCreateSeriesDataModel,
+    VelogEditCommentDataModel,
     VelogEditPostDataModel,
+    VelogFollowDataModel,
     VelogLikePostDataModel,
     VelogPostForEditDataModel,
+    VelogRemoveCommentDataModel,
     VelogStatsDataModel,
+    VelogUnfollowDataModel,
     VelogUnlikePostDataModel,
     VelogWriteCommentDataModel,
     VelogWritePostDataModel,
