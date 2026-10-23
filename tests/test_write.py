@@ -116,18 +116,26 @@ def test_edit_keeps_fields_that_were_not_given():
         ({'is_temp': None, 'is_private': False, 'user': {'id': 'u1', 'username': 'me'}}, 'PARSE_ERROR'),
         # 공개 여부를 모르면 공개(False)로 추측해 보내 비공개 글이 공개됐다
         ({'is_temp': False, 'is_private': None, 'user': {'id': 'u1', 'username': 'me'}}, 'PARSE_ERROR'),
+        # 본문을 모르면 '' 로 채워 보내 본문이 지워졌다 (--body 없이 제목만 고칠 때)
+        ({'is_temp': False, 'is_private': False, 'body': None, 'user': {'id': 'u1', 'username': 'me'}}, 'PARSE_ERROR'),
+        # meta 를 모르면 {} 로 보내 사용자가 쓴 요약(meta.short_description)이 본문에서 뽑은 요약으로 바뀌었다
+        ({'is_temp': False, 'is_private': False, 'meta': None, 'user': {'id': 'u1', 'username': 'me'}}, 'PARSE_ERROR'),
     ],
 )
 def test_edit_does_not_send_edit_post_when_it_would_change_what_it_should_not(post, code):
-    """editPost 는 보낸 값으로 글을 덮는다. 남의 글이거나 발행·공개 상태를 모르면 editPost 를 보내지 않는다."""
+    """editPost 는 보낸 값으로 글을 덮는다. 남의 글이거나 바꾸지 않을 칸의 현재 값을 모르면 editPost 를 보내지 않는다."""
     sent: list[str] = []
+    current = {
+        'id': 'p1', 'title': '제목', 'body': '본문', 'tags': ['a'], 'is_markdown': True,
+        'url_slug': 'orig', 'meta': {'short_description': '요약'}, 'thumbnail': None, 'series': None,
+    }
 
     def handler(request: httpx.Request) -> httpx.Response:
         query = json.loads(request.content)['query']
         if 'auth {' in query:
             return httpx.Response(200, json=AUTH_OK)
         if 'ReadPostForEdit' in query:
-            return httpx.Response(200, json={'data': {'post': {'id': 'p1', 'title': '제목', 'body': '본문', **post}}})
+            return httpx.Response(200, json={'data': {'post': {**current, **post}}})
         sent.append(query)
         return httpx.Response(200, json={'data': {'editPost': None}})
 

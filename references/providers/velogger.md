@@ -174,9 +174,14 @@ access_token 을 뺀 세션 사본으로 `whoami` 를 부르는 도중 logout �
   거른다). 그대로 `editPost` 를 보내면 v2 가 거절을 삼켜 null → '반영됐는지 확인하라' 는 `UPSTREAM_ERROR` 가 나가므로, `user { id }`
   를 같이 읽어 `require_auth` 의 id 와 다르면 보내지 않고 `FORBIDDEN` 이다. 글쓴이를 velog 가 안 주면 막지 않는다 (velog 가
   거절할 뿐 바뀌는 것이 없다).
-- **발행·공개 상태를 모르면 `editPost` 를 보내지 않는다** (`PARSE_ERROR`). 예전에는 `is_temp: null` 이면 초안(`true`),
-  `is_private: null` 이면 공개(`false`)로 추측해, velog 가 값을 빠뜨리면 발행된 글이 초안이 되거나 비공개 글이 공개될 수 있었다.
-  2026-10-21 실측으로는 내 글·초안 모두 두 값이 왔다.
+- **바꾸지 않을 칸의 현재 값을 모르면 `editPost` 를 보내지 않는다** (`PARSE_ERROR`, 메시지에 빠진 칸 이름). 대상은
+  `is_temp`·`is_private`·`title`·`body`·`tags`·`url_slug`·`is_markdown`·`meta` 다 (사용자가 옵션으로 준 칸은 빼고). 예전에는
+  `is_temp: null` 이면 초안(`true`), `is_private: null` 이면 공개(`false`)로 추측해 발행된 글이 초안이 되거나 비공개 글이
+  공개될 수 있었고, 본문·제목은 `''`, 태그는 `[]`, `meta` 는 `{}`, slug 는 제목에서 새로 만들어 보내 본문·태그·요약이 지워지거나
+  글 주소가 바뀔 수 있었다. `thumbnail`·시리즈만 null 이 '없음' 이라 그대로 보낸다. velog-server 스키마(`entity/Post.ts`)로는
+  모두 NOT NULL 이고 실측으로도 늘 왔다 (2026-10-21 내 글·초안, 2026-10-23 내 공개 글·velopert 의 2018년 글. `meta` 는 `{}` 이거나
+  `short_description`·`code_theme` 가 든 객체). 그러니 "null 이 오지 않는데 왜 막느냐" 는 지적은 오탐이다 — 오지 않아야 정상이고,
+  왔을 때 되돌릴 수 없어서 막는다.
 - ⚠️ **`writePost`·`editPost` 는 값이 없는 인자도 null 로 반드시 보낸다 (`exclude_none` 금지).** v2 의 writePost 는
   껍데기라 받은 인자를 그대로 내부 v3 의 `WritePostInput` 으로 넘기는데(`postService.write`), `thumbnail`·
   `series_id`·`meta`·`token` 키가 **빠지면 내부 v3 가 거절**하고 v2 는 그 에러를 `catch` 로 삼켜 HTTP 200 에
