@@ -369,8 +369,9 @@ class BaseHTTPClient(BaseModel, ABC):
         return self.rate_limiter.event_hooks()
 
     def async_rate_limit_hooks(self) -> dict[str, list[Callable[..., Awaitable[None]]]]:
-        # async 쪽(이 훅, `_async_client`, provider 의 `arun_request_*`)은 CLI 가 부르지 않지만 라이브러리로 쓸 때의 공개 API 라
-        # 일부러 둔다 (provider-conventions.md '요청 메서드'). 호출부 0건은 죽은 코드가 아니다
+        # async 쪽(이 훅, `_async_client`)은 CLI 가 부르지 않지만, async 로 부르고 싶은 엔드포인트가 생기면 `arun_request_*` 를
+        # 짝으로 더할 기반이라 일부러 둔다. velogger 에는 아직 `arun_request_*` 가 하나도 없다 (provider-conventions.md '요청
+        # 메서드'). 호출부 0건은 죽은 코드가 아니다
         return self.rate_limiter.async_event_hooks()
 
     @property
@@ -397,8 +398,9 @@ class BaseHTTPClient(BaseModel, ABC):
     def close(self) -> None:
         """
         Close the sync client only: an async client cannot be closed from
-        sync code. If ``arun_request_*`` was used, close with ``aclose()`` or
-        ``async with`` instead (a plain ``with`` leaves the async pool open).
+        sync code. If ``_async_client`` was used (e.g. by an ``arun_request_*``
+        method a subclass adds), close with ``aclose()`` or ``async with``
+        instead (a plain ``with`` leaves the async pool open).
         """
         client: Client | None = self.__dict__.pop('_client', None)
         if client is not None:
