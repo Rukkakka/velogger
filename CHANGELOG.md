@@ -5,6 +5,8 @@ velogger 의 버전별 변경 기록. 사용자(에이전트 포함)에게 보�
 
 ## Unreleased
 
+## 0.3.0 — 2026-10-23
+
 ### 추가
 
 - `posts`·`recent`·`liked`·`followers`·`followings` 에 `--cursor` 와 결과의 `next_cursor`(다음 페이지, `null` 이면 마지막 페이지).
