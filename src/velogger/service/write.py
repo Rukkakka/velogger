@@ -435,6 +435,11 @@ def remove_comment(client: VelogClient, comment_id: str) -> VelogCommentRemoveRe
     """내 댓글을 지운다 (되돌릴 수 없다. CLI 는 `--yes` 를 받은 뒤에만 부른다).
 
     `require_auth` 를 두지 않는 이유는 `edit_comment` 와 같다.
+
+    `removeComment: false` 를 따로 에러로 바꾸지 않는 것은 일부러다. velog-server `removeComment` 리졸버는 지운 뒤 늘
+    `return true` 이고 실패(없는 댓글·로그인 안 됨·남의 댓글·글 없음)는 모두 던진다 (소스 기준). 실제로도 없는 댓글은
+    `null` + errors 'Comment not found' 였다 (2026-10-23 실측, 가짜 id). null 은 `_written` 이 막으므로 false 가 올 길이 없다.
+    "false 를 성공으로 낸다" 는 지적은 오탐이다.
     """
     data = graphql_data(client.run_request_remove_comment(comment_id))
     removed = _written(data.remove_comment if data else None, '댓글 삭제(removeComment)')
