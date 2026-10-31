@@ -231,7 +231,7 @@ def should_retry_idempotent(exc: BaseException) -> bool:
 def should_retry_non_idempotent(exc: BaseException) -> bool:
     """상태를 바꾸는 호출(글·댓글 작성, 메일 발송 등)용 재시도 술어. 서버가 처리하지 않았다고 볼 수 있는 실패만 다시 보낸다.
 
-    재시도 규약(references/provider-conventions.md '재시도')이 상태를 바꾸는 호출에 이 술어를 쓰라고 정해 두었다.
+    재시도 규약(docs/development/provider-conventions.md '재시도')이 상태를 바꾸는 호출에 이 술어를 쓰라고 정해 두었다.
 
     - 429·503 만 재시도한다. 둘 다 서버가 요청을 받지 않고 돌려보낸 응답이다.
     - 502·504(게이트웨이)·500 은 원 서버가 이미 처리한 뒤 응답만 잃었을 수 있어 다시 보내지 않는다. 다시 보내면

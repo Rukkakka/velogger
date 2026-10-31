@@ -1,7 +1,7 @@
 """velogger 의 로그인 없는 조회 명령을 실제로 불러 비공식 API 가 깨졌는지 본다 (매일 새벽 `.github/workflows/api-monitor.yml`).
 
 로그인·쓰기는 부작용이 있고 CI 에 세션도 없어 넣지 않는다 (`NOT_MONITORED`). 명령마다 셋으로 나눈다
-(references/development.md '매일 API 감시').
+(docs/development/README.md '매일 API 감시').
 
 - 정상: exit 0 이고 정한 칸(`Step.expect`)에 값이 있음
 - 고장: 응답 형식 오류·서버 거절·내부 오류 같은 에러, 정한 칸이 비어 있음, JSON 이 아닌 출력. 결과가 0건일 리 없는

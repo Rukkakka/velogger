@@ -1,6 +1,6 @@
-# velogger 개발 가이드
+# velog API 개발 가이드
 
-[CLI 사용법](../../docs/velogger.md) · [개발 환경·검증](../development.md) · [공통 아키텍처](../architecture.md) · [provider 작성 규약](../provider-conventions.md) · [출력 계약](../output-contract.md) · [코드 형식](../code-style.md)
+[CLI 사용법](../velogger.md) · [개발 환경·검증](README.md) · [공통 아키텍처](architecture.md) · [provider 작성 규약](provider-conventions.md) · [출력 계약](output-contract.md) · [코드 형식](code-style.md)
 
 공통 규약에 없는, velog 에만 있는 구현과 예외를 적는다. 엔드포인트·해시는 velog 웹 번들에서 꺼냈고,
 사이트가 바뀌면 조용히 깨질 수 있으니 바꾸기 전에 실제 응답으로 확인한다.

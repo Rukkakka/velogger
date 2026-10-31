@@ -1,10 +1,10 @@
 # 공통 개발 환경
 
-[개발 규약](../AGENTS.md) · [코드 형식](code-style.md) · [작업 절차](workflow.md)
+[개발 규약](../../AGENTS.md) · [코드 형식](code-style.md) · [작업 절차](workflow.md)
 
 ## 설치
 
-코드를 고치려면 저장소를 받아 편집 가능 모드로 설치한다. 고친 코드가 바로 반영된다. Python 3.11 이상과 git 이 필요하다 ([README 의 설치](../README.md#설치)).
+코드를 고치려면 저장소를 받아 편집 가능 모드로 설치한다. 고친 코드가 바로 반영된다. Python 3.11 이상과 git 이 필요하다 ([README 의 설치](../../README.md#설치)).
 
 ```bash
 # macOS·Linux
@@ -26,7 +26,7 @@ py -m venv .venv                       # 또는 uv venv --python 3.11
 .venv\Scripts\velogger --help             # .venv\Scripts\Activate.ps1 후에는 velogger 만 쳐도 된다
 ```
 
-Windows 는 [README 의 Windows 에서 쓸 때](../README.md#windows-에서-쓸-때)(UTF-8 출력 설정)도 그대로 적용된다. `Activate.ps1` 이 실행 정책 때문에 막히면 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 를 한 번 실행한다.
+Windows 는 [README 의 Windows 에서 쓸 때](../../README.md#windows-에서-쓸-때)(UTF-8 출력 설정)도 그대로 적용된다. `Activate.ps1` 이 실행 정책 때문에 막히면 `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned` 를 한 번 실행한다.
 
 ## 코드 검사
 
@@ -70,7 +70,7 @@ Windows 는 `.venv\Scripts\ruff`, `.venv\Scripts\mypy` 로 부른다.
 
 Windows 는 `.venv/bin/pytest` 대신 `.venv\Scripts\pytest` 로 부른다.
 
-- **전체 `pytest` 는 실행 전에 사용자에게 묻는다.** PR 에서는 [CI](../.github/workflows/ci.yml) 가 전체를 돌린다.
+- **전체 `pytest` 는 실행 전에 사용자에게 묻는다.** PR 에서는 [CI](../../.github/workflows/ci.yml) 가 전체를 돌린다.
 - 평소에는 바꾼 함수를 직접 검사하는 테스트 몇 개만 `tests/test_x.py::test_name` 으로 골라 한 번 실행한다. 파일 전체, 넓은 `-k` 키워드, 바꾼 함수를 부르는 테스트를 모두 모아 돌리는 것도 하지 않는다. 실패하면 그 테스트만 다시 돌린다.
 - 문구·문서·이름 변경처럼 깨질 위험이 없으면 바꾼 부분의 테스트도 돌리지 않는다.
 
@@ -84,8 +84,8 @@ Windows 는 `.venv/bin/pytest` 대신 `.venv\Scripts\pytest` 로 부른다.
 ## 매일 API 감시
 
 비공식 API 는 velog 가 응답을 바꾸면 조용히 깨진다 (2026-10-19 의 `writePost` 처럼 에러도 없이 null 만 오기도
-한다). 사용자보다 먼저 알려고 [API 감시 워크플로](../.github/workflows/api-monitor.yml)가 한국 시간 매일
-04:17 에 조회 명령을 실제로 부른다 ([scripts/monitor/api_check.py](../scripts/monitor/api_check.py)). jibsa 의 감시를 옮긴 것이고,
+한다). 사용자보다 먼저 알려고 [API 감시 워크플로](../../.github/workflows/api-monitor.yml)가 한국 시간 매일
+04:17 에 조회 명령을 실제로 부른다 ([scripts/monitor/api_check.py](../../scripts/monitor/api_check.py)). jibsa 의 감시를 옮긴 것이고,
 소스가 하나라 러너를 나누지 않는다. CI 는 여전히 실제 API 를 부르지 않는다.
 
 - **무엇을 부르나:** 로그인 없이 되는 조회만 (`trending`·`recent`·`search`·`tag`·`posts`·`followers`(셋은 첫 페이지·`--cursor` 다음 페이지)·`user`·

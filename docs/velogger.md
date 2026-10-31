@@ -1,6 +1,6 @@
 # velogger 사용법
 
-[설치](../README.md) · [공통 사용 규칙](common.md) · [개발 가이드](../references/providers/velogger.md)
+[설치](../README.md) · [공통 사용 규칙](common.md) · [개발 가이드](development/velog-api.md)
 
 > 출력 형식·에러 대응·요청 제한 같은 공통 규칙은 [공통 사용 규칙](common.md)에 있다. 이 문서는 명령별 세부를 적는다.
 

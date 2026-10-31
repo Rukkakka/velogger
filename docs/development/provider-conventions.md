@@ -5,7 +5,7 @@
 
 velogger 는 소스가 velog 하나뿐이라 jibsa·baenggipyo 의 `providers/<source>/` 한 겹을 두지 않고, API 층과
 service 층을 `src/velogger/` 바로 아래(`api/`·`service/`)에 둔다. 두 층의 역할·규약은 jibsa 를 그대로 따르고,
-velog 고유의 구현·예외는 [velogger 개발 가이드](providers/velogger.md)에 적는다.
+velog 고유의 구현·예외는 [velog API 개발 가이드](velog-api.md)에 적는다.
 
 ## 모듈 구성
 
@@ -31,12 +31,12 @@ src/velogger/
 ### service 모듈을 나누는 기준
 
 1. **모듈 하나는 CLI 명령 묶음 하나를 맡는다.** 명령 이름만 알면 고칠 파일을 찾을 수 있게 한다. velogger 의 명령 ↔
-   모듈 대응은 [velogger 개발 가이드](providers/velogger.md#명령과-요청-흐름)의 표에 있다.
+   모듈 대응은 [velog API 개발 가이드](velog-api.md#명령과-요청-흐름)의 표에 있다.
 2. **두 모듈 이상이 쓰는 심볼은 `common` 에 둔다.** 한 모듈만 쓰면 그 모듈에 둔다.
 3. **import 는 `common` → 기능 모듈 방향으로만 한다.** 기능 모듈끼리 서로 가져다 쓰지 않는다. 같이 쓰게 되면
    그 심볼을 `common` 으로 옮긴다.
 4. **모듈이 1,000줄을 넘으면 기능을 다시 나눈다.**
-5. **새 명령은 맞는 모듈에 넣는다.** 맞는 모듈이 없으면 새 모듈을 만들고 velogger 개발 가이드의 표에 한 줄 추가한다.
+5. **새 명령은 맞는 모듈에 넣는다.** 맞는 모듈이 없으면 새 모듈을 만들고 velog API 개발 가이드의 표에 한 줄 추가한다.
 6. CLI 와 테스트는 하위 모듈에서 바로 가져온다 (`from velogger.service.posts import ...`).
 7. **요청·응답 모델(`request/`·`response/`)은 service 와 같은 모듈 이름으로 나눈다.** 두 기능 이상이 쓰는 모델,
    중첩 모델, 기반 모델은 `common` 에 둔다. 모듈이 작아도(모델 하나여도) 같은 이름으로 둔다. `client.py` 는
@@ -127,5 +127,5 @@ client 상수로 두고 근거(번들 파일·쿼리 이름)를 주석으로 남
    `api/client.py` 에 ClassVar/쿼리 상수 + sync/async 메서드.
 3. 필요하면 맞는 service 모듈에서 조합한다. 자주 쓰는 공개 진입점이면 provider `__init__.py` 에 re-export 한다.
 4. CLI 직접 조회로 실제 동작을 확인한다. 로그인·발행처럼 부작용 있는 엔드포인트는 사용자에게 확인하고 쓴다.
-   테스트는 [추가 기준](development.md#검증과-테스트)에 맞을 때만 픽스처 + `httpx.MockTransport` 로 추가한다.
+   테스트는 [추가 기준](README.md#검증과-테스트)에 맞을 때만 픽스처 + `httpx.MockTransport` 로 추가한다.
    픽스처는 실제 응답 구조를 본뜨되 값은 모두 가상으로 바꾸고(사용자·글·토큰·쿠키), 실제 응답은 커밋하지 않는다.

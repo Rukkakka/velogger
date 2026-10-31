@@ -116,7 +116,7 @@ uv pip install -e ".[dev]"
 .venv/bin/velogger --help
 ```
 
-자세한 개발 환경·검증 방법은 [개발 환경](https://github.com/Rukkakka/velogger/blob/main/references/development.md)에 있다.
+자세한 개발 환경·검증 방법은 [개발 환경](https://github.com/Rukkakka/velogger/blob/main/docs/development/README.md)에 있다.
 
 ## 로그인하기
 
@@ -183,12 +183,12 @@ LLM 이 velog 를 다루려면 비공식 API 를 추측해 호출하다 막히�
 
 개발 문서
 
-- [공통 개발 규약](https://github.com/Rukkakka/velogger/blob/main/AGENTS.md) · [개발 환경](https://github.com/Rukkakka/velogger/blob/main/references/development.md) · [아키텍처](https://github.com/Rukkakka/velogger/blob/main/references/architecture.md) · [버전·릴리스](https://github.com/Rukkakka/velogger/blob/main/references/release.md)
-- [velogger 개발 가이드](https://github.com/Rukkakka/velogger/blob/main/references/providers/velogger.md)
+- [공통 개발 규약](https://github.com/Rukkakka/velogger/blob/main/AGENTS.md) · [개발 환경](https://github.com/Rukkakka/velogger/blob/main/docs/development/README.md) · [아키텍처](https://github.com/Rukkakka/velogger/blob/main/docs/development/architecture.md) · [버전·릴리스](https://github.com/Rukkakka/velogger/blob/main/docs/development/release.md)
+- [velog API 개발 가이드](https://github.com/Rukkakka/velogger/blob/main/docs/development/velog-api.md)
 
 ## 기여
 
-버그·기능 제안은 [이슈](https://github.com/Rukkakka/velogger/issues/new/choose)로 열고, 코드를 고치기 전에 [개발 규약](https://github.com/Rukkakka/velogger/blob/main/AGENTS.md)의 "꼭 지킬 것"(토큰·쿠키 비출력, 로그인은 사용자가, 캡차를 풀지 않음 등)을 읽는다. 개발 환경 설치와 검사는 [개발 환경](https://github.com/Rukkakka/velogger/blob/main/references/development.md), 브랜치 → 커밋 → PR 절차는 [작업 절차](https://github.com/Rukkakka/velogger/blob/main/references/workflow.md)에 있다. 모든 변경은 PR 로 들어가고 CI(ruff·mypy·pytest·설치 확인)를 통과해야 한다.
+버그·기능 제안은 [이슈](https://github.com/Rukkakka/velogger/issues/new/choose)로 열고, 코드를 고치기 전에 [개발 규약](https://github.com/Rukkakka/velogger/blob/main/AGENTS.md)의 "꼭 지킬 것"(토큰·쿠키 비출력, 로그인은 사용자가, 캡차를 풀지 않음 등)을 읽는다. 개발 환경 설치와 검사는 [개발 환경](https://github.com/Rukkakka/velogger/blob/main/docs/development/README.md), 브랜치 → 커밋 → PR 절차는 [작업 절차](https://github.com/Rukkakka/velogger/blob/main/docs/development/workflow.md)에 있다. 모든 변경은 PR 로 들어가고 CI(ruff·mypy·pytest·설치 확인)를 통과해야 한다.
 
 ## 라이선스
 

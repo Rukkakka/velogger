@@ -56,7 +56,7 @@ velogger 는 LLM 에이전트가 셸로 호출하는 도구라, CLI 의 출력 �
   `ALREADY_EXISTS`, 그 밖의 GraphQL 에러는 `UPSTREAM_ERROR`. '잠시 뒤 다시 시도' 힌트의 `UPSTREAM_ERROR` 로 두면 에이전트가
   다시 보내도 결과가 같은 요청을 되풀이한다.
 - 쓰기 mutation 이 errors 없이 null 을 주면 성공으로 내지 않고 `UPSTREAM_ERROR` 로 바꾼다 (velog v2 가 내부 에러를
-  삼킨다, [velogger 개발 가이드](providers/velogger.md#조용한-실패-null-결과와-not-found)). hint 는 "바로 다시 보내지 말고 반영
+  삼킨다, [velog API 개발 가이드](velog-api.md#조용한-실패-null-결과와-not-found)). hint 는 "바로 다시 보내지 말고 반영
   여부를 먼저 확인" 이다.
 
 ## 결과 출력
@@ -107,4 +107,4 @@ velogger 는 **조회·작성까지만** 한다. 자격증명과 추적 정보�
 - 커서(`cursor`) 기반 페이지는 다음 커서가 없거나 진행하지 않거나 요청 횟수 상한에 닿으면 중단한다.
 - `returned` 는 실제 반환 수이며 요청한 `limit` 과 같다는 보장이 없다. 집계 범위·제외 사유는 `notes` 로 설명한다.
 
-명령별 기본값·최대값은 `docs/velogger.md` 의 해당 명령 절에, 조회 방식별 예외는 [velogger 개발 가이드](providers/velogger.md)에 적는다.
+명령별 기본값·최대값은 `docs/velogger.md` 의 해당 명령 절에, 조회 방식별 예외는 [velog API 개발 가이드](velog-api.md)에 적는다.
