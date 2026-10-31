@@ -42,7 +42,7 @@ jibsa·baenggipyo 는 "로그인 없는 기능만" 이 첫 규칙이지만, velo
 README 로고(`docs/logo-light.svg`·`docs/logo-dark.svg`)는 `scripts/logo/build_logo.py` 로 만든다. 글자를 외곽선으로 바꾼
 파일이라 직접 고치지 않고 스크립트를 고쳐 다시 만든다. 비공식 도구라 공식 velog 로고·청록색을 쓰지 않는다.
 
-velog 비공식 API(v2 REST·v2/v3 GraphQL)의 엔드포인트·필드 의미는 provider 의 `api/client.py` docstring 과
+velog 비공식 API(v2 REST·v2/v3 GraphQL)의 엔드포인트·필드 의미는 `api/client.py` docstring 과
 `api/response/` 모델 설명에 적는다. 엔드포인트를 추가·수정하기 전에 먼저 읽고, 응답 형태는 CLI 직접
 조회나 원본 응답으로 확인한다.
 
@@ -53,7 +53,7 @@ velog 비공식 API(v2 REST·v2/v3 GraphQL)의 엔드포인트·필드 의미는
 - **발행에 캡차가 걸리면 넣지 않는다.** `is_trusted` 가 false 인 계정은 글 발행에 Cloudflare Turnstile 이 붙는다. 캡차를 풀지 않고, 그런 계정의 발행은 에러로 "웹에서 발행하라" 고 안내한다. 봇 차단을 우회하지 않는다.
 - **조회 결과는 stdout JSON, 에러는 stderr JSON.** 도움말·자동완성·`guide`·`--version` 은 CLI 텍스트이며 `--verbose` 진행 로그는 stderr 로 나간다. 새 에러는 `VeloggerError` 로 코드·힌트를 붙여 던진다.
 - **값이 없을 때:** 해당 없음 → 키 삭제, 모름 → `null`, 비어 있음 → `[]`.
-- **내려갔거나 비공개·임시인 글은 그대로 드러내지 않는다.** 목록에서 `is_private`·`is_temp` 를 그대로 전하고, 없는 글은 `NOT_FOUND`. 가격처럼 캐시할 값은 없지만 조회는 항상 실시간이다.
+- **비공개·임시 글은 그 표시를 그대로 전한다.** 목록에서 `is_private`·`is_temp` 를 그대로 전하고, 없는 글은 `NOT_FOUND`. 결과를 캐시하지 않고 늘 실시간으로 조회한다.
 - **서버가 거른 결과를 같은 조건으로 다시 거르지 않는다.** velog 의 분류·검색 결과를 다른 기준으로 다시 판정하지 않는다. 직접 거르는 건 서버가 받지 않는 조건뿐이고, 확인할 수 없어 뺀 항목은 사유를 `notes` 로 알린다.
 - **모든 HTTP 요청은 요청 제한 훅을 거친다.** 새 클라이언트도 `rate_limit_hooks()` 를 `event_hooks` 로 넘긴다. 폴링으로 다시 묻는 요청도 마찬가지다.
 - **검증은 실제 API 로, 테스트는 최소로.** 코드를 바꾸면 CLI 직접 조회 같은 실제 API 호출로 확인한다 (요청은 최소로). 로그인·발행처럼 실제 부작용이 있는 동작은 함부로 자동 실행하지 않는다. 테스트는 아주 드문 엣지케이스나 틀어지면 안 되는 핵심 동작일 때만 추가한다. ([검증과 테스트](docs/development/README.md#검증과-테스트))

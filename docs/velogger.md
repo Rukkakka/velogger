@@ -55,7 +55,7 @@
   `trending`·`search` 는 `--offset`, `drafts`·`feed` 는 첫 `--limit` 개(최대 100)만 받는다.
 - `is_private`·`is_temp` 는 비공개·임시저장(초안) 여부다. 초안은 공개 주소가 없어 `url` 이 편집 주소(`velog.io/write?id=...`)다.
 - **본문은 요약에 없다.** 글을 읽으려면 그 글의 `username` 과 `url_slug` 로 `post` 를 부른다.
-- 소스마다 빠지는 필드가 있다 (`search` 는 `updated_at`·`likes` 를 안 주고 `null`). `null` 은 모름이다.
+- 명령마다 빠지는 필드가 있다 (`search` 는 `updated_at`·`likes` 를 안 주고 `null`). `null` 은 모름이다.
 
 ## `trending` — 트렌딩 글
 

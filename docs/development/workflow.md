@@ -66,7 +66,7 @@ PR 템플릿의 `변경 종류` 도 같은 다섯 이름을 쓴다. PR 이 닫�
 
 - [검증과 테스트](README.md#검증과-테스트) 원칙대로 확인했다. 가짜 응답으로만 확인했다면 그 이유를,
   테스트를 추가했다면 드문 엣지케이스인지 핵심 동작인지 PR 에 적었다.
-- 명령·옵션·출력 필드·에러 코드·요청 제한 정책이 바뀌었다면 해당 `docs/<source>.md`·`docs/common.md`와
+- 명령·옵션·출력 필드·에러 코드·요청 제한 정책이 바뀌었다면 `docs/velogger.md`·`docs/common.md`와
   [output-contract.md](output-contract.md) 를 고쳤다. 명령을 추가·삭제했거나 에이전트가 틀리기 쉬운 해석 규칙이 바뀌었다면
   `docs/llm.md` 도 고쳤다.
 - 명령을 추가·삭제했다면 매일 API 감시 목록(`scripts/monitor/api_check.py` 의 `STEPS`, 감시하지 않으면 `NOT_MONITORED` 에

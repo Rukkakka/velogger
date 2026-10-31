@@ -2,7 +2,7 @@
 
 셸로 `velogger` 를 불러 velog.io 를 다루는 LLM 에이전트용 요약이다. `velogger guide` 가 이 문서를 그대로 출력한다. 옵션 세부는 `velogger <명령> --help`, 더 깊은 설명은 `velogger guide velogger <명령>` 으로 읽는다.
 
-> **조회**(`trending`·`recent`·`search`·`posts`·`post`·`comments`·`user`·`tag`·`series`·`followers`·`followings`), **작성·반응**(`publish`·`edit`·`drafts`·`like`·`unlike`·`comment`·`comment-edit`·`comment-remove`·`follow`·`unfollow`·`series-create`·`series-add`·`upload`·`stats`·`feed`·`liked`), **로그인**(`login`·`logout`·`whoami`), 요청 제한(`limits`).
+> **조회**(`trending`·`recent`·`search`·`posts`·`post`·`comments`·`user`·`tag`·`series`·`followers`·`followings`), **내 목록**(`feed`·`liked`·`drafts`·`stats`, 로그인), **작성·반응**(`publish`·`edit`·`like`·`unlike`·`comment`·`comment-edit`·`comment-remove`·`follow`·`unfollow`·`series-create`·`series-add`·`upload`, 로그인), **로그인**(`login`·`logout`·`whoami`), 요청 제한(`limits`).
 
 ## 꼭 지킬 규칙
 
