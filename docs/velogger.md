@@ -1,8 +1,8 @@
 # velogger 사용법
 
-[설치](../README.md) · [공통 사용 규칙](common.md) · [개발 가이드](development/velog-api.md)
+[설치](https://github.com/Rukkakka/velogger/blob/main/README.md) · [공통 사용 규칙](https://github.com/Rukkakka/velogger/blob/main/docs/common.md) · [개발 가이드](https://github.com/Rukkakka/velogger/blob/main/docs/development/velog-api.md)
 
-> 출력 형식·에러 대응·요청 제한 같은 공통 규칙은 [공통 사용 규칙](common.md)에 있다. 이 문서는 명령별 세부를 적는다.
+> 출력 형식·에러 대응·요청 제한 같은 공통 규칙은 [공통 사용 규칙](https://github.com/Rukkakka/velogger/blob/main/docs/common.md)에 있다. 이 문서는 명령별 세부를 적는다.
 
 ## 한눈에 보기
 
@@ -364,4 +364,4 @@ velogger login --cookie 'access_token=...; refresh_token=...'
 
 ## `limits`
 
-요청 제한 상태를 본다 (네트워크 요청 없음). `--reset` 으로 로컬 쿨다운·요청 기록을 초기화한다. 자세한 정책은 [공통 사용 규칙](common.md#요청-제한과-limits)에 있다.
+요청 제한 상태를 본다 (네트워크 요청 없음). `--reset` 으로 로컬 쿨다운·요청 기록을 초기화한다. 자세한 정책은 [공통 사용 규칙](https://github.com/Rukkakka/velogger/blob/main/docs/common.md#요청-제한과-limits)에 있다.
