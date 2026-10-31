@@ -47,6 +47,16 @@ velog 비공식 API(v2 REST·v2/v3 GraphQL)의 엔드포인트·필드 의미는
 `api/response/` 모델 설명에 적는다. 엔드포인트를 추가·수정하기 전에 먼저 읽고, 응답 형태는 CLI 직접
 조회나 원본 응답으로 확인한다.
 
+## 자주 쓰는 명령
+
+```bash
+.venv/bin/ruff check && .venv/bin/mypy       # 코드를 고쳤으면 둘 다 0건
+.venv/bin/pytest tests/test_x.py::test_name  # 바꾼 부분 테스트만 이름으로 (전체 pytest 는 먼저 묻는다)
+.venv/bin/velogger <명령> ...                # 바뀐 조회는 실제 API 로 한 번 불러 확인 (로그인·쓰기는 함부로 실행하지 않는다)
+```
+
+설치와 Windows 명령은 [개발 환경](docs/development/README.md)에 있다.
+
 ## 꼭 지킬 것
 
 - **토큰·쿠키·추적 ID 는 출력하지 않는다.** 로그인 정보는 로그인 여부·username·is_trusted 만. 원본 응답을 통째로 내보내지 않는다.
@@ -98,6 +108,9 @@ README 는 로고·배지·기능 요약(명령 표)·빠른 시작(실제 출�
 명령의 인자·기본값·조회 한도·반환값·오류·주의사항은 해당 명령 절에서 설명한다. 공통 규칙은 복사하지 않고 링크로 연결한다. 명령을 실제로 추가하면 해당 문서의 `예정` 표시를 지운다.
 
 ## 작업 절차
+
+**에이전트는 사용자가 시킬 때만 이슈·브랜치·커밋·PR 을 만든다.** 시키지 않았으면 지금 브랜치에서 파일만 고치고 멈춘다.
+[workflow.md](docs/development/workflow.md) 의 "파일을 고치기 전에 브랜치부터 딴다" 보다 이 규칙이 먼저다. 시켰을 때는 아래 절차를 따른다.
 
 커밋 전에 **[docs/development/workflow.md](docs/development/workflow.md)** 를 읽는다. 요약:
 `main` 에 직접 커밋하지 않고 `<type>/<slug>` 브랜치에서 작업하고, PR 로 머지한다. 커밋 하나에 관심사 하나,
