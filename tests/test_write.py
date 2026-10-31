@@ -107,6 +107,38 @@ def test_edit_keeps_fields_that_were_not_given():
     assert variables['meta'] == {'short_description': '원래 요약'}
 
 
+def test_edit_description_keeps_other_meta_keys():
+    """소개글만 바꾸고 다른 meta 키는 그대로 보낸다. editPost 는 meta 를 보낸 값으로 덮는다.
+
+    웹으로 쓴 글의 meta 에는 `code_theme` 도 있다 (2026-10-23 실측). 소개글만 담아 보내면 그 값이 지워진다.
+    """
+    sent: dict[str, object] = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = json.loads(request.content)
+        query = body['query']
+        if 'ReadPostForEdit' in query:
+            return httpx.Response(200, json={'data': {'post': {
+                'id': 'p1', 'title': '제목', 'body': '본문', 'tags': [], 'is_markdown': True, 'is_private': False,
+                'is_temp': True, 'thumbnail': None, 'url_slug': 'orig', 'series': None,
+                'meta': {'short_description': '원래 요약', 'code_theme': 'atom-one-light'},
+                'user': {'id': 'u1', 'username': 'me'},
+            }}})
+        if 'auth {' in query:
+            return httpx.Response(200, json=AUTH_OK)
+        sent['variables'] = body['variables']
+        return httpx.Response(
+            200,
+            json={'data': {'editPost': {'id': 'p1', 'url_slug': 'orig', 'user': {'id': 'u1', 'username': 'me'}}}},
+        )
+
+    edit_post(_mock_client(handler), 'p1', short_description='새 소개글')
+
+    variables = sent['variables']  # type: ignore[index]
+    assert variables['meta'] == {'short_description': '새 소개글', 'code_theme': 'atom-one-light'}
+    assert variables['body'] == '본문'
+
+
 @pytest.mark.parametrize(
     ('post', 'code'),
     [

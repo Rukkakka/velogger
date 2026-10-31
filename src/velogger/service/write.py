@@ -74,6 +74,9 @@ IMAGE_FORMATS_TEXT: str = 'PNG·JPEG·GIF·WebP·AVIF·SVG'
 # 마크다운 이미지 alt 에서 뜻이 있는 글자. 파일 이름 `diagram]v2.png` 를 그대로 넣으면 `![diagram]v2](...)` 가 돼 이미지가
 # 아니라 글자로 보인다
 MARKDOWN_ALT_SPECIAL: re.Pattern[str] = re.compile(r'([\\\[\]])')
+# 소개글(meta.short_description) 최대 길이. velog 웹은 150자에서 자른다 (velog-client `modules/write.ts` 의 CHANGE_DESCRIPTION,
+# 소스 기준). 서버는 길이를 보지 않지만, 웹에서 다시 고칠 때 잘리지 않게 같은 한도를 둔다.
+SHORT_DESCRIPTION_MAX_LENGTH: int = 150
 
 
 def slugify(title: str) -> str:
@@ -226,6 +229,29 @@ def _publish_result(written: VelogWrittenPostModel, *, is_temp: bool, is_private
     )
 
 
+def _check_short_description(short_description: str) -> None:
+    """소개글이 비었거나 150자를 넘으면 막는다.
+
+    빈 소개글을 받지 않는 것은 일부러다. velog 는 빈 값을 저장하고 본문 앞부분을 대신 보여 주는데, 셸 변수가 비어 넘어온
+    `--description ""` 이 사용자가 쓴 소개글을 지우면 되돌릴 수 없다. 비우는 일은 웹에서 한다.
+
+    Raises:
+        VeloggerError: 비었거나 공백만 있을 때, 150자를 넘을 때 (`INVALID_ARGUMENT`).
+    """
+    if not short_description.strip():
+        raise VeloggerError(
+            code='INVALID_ARGUMENT',
+            message='소개글(--description)이 비어 있습니다',
+            hint='소개글 문장을 넣으세요. 지금 소개글을 그대로 두려면 --description 을 빼세요',
+        )
+    if len(short_description) > SHORT_DESCRIPTION_MAX_LENGTH:
+        raise VeloggerError(
+            code='INVALID_ARGUMENT',
+            message=f'소개글이 {len(short_description)}자라 {SHORT_DESCRIPTION_MAX_LENGTH}자를 넘습니다',
+            hint=f'{SHORT_DESCRIPTION_MAX_LENGTH}자 이하로 줄여 다시 보내세요 (velog 웹도 {SHORT_DESCRIPTION_MAX_LENGTH}자에서 자릅니다)',
+        )
+
+
 def _check_can_publish(user: VelogAuthUserModel, *, is_temp: bool, already_published: bool = False) -> None:
     """발행인데 신뢰 계정이 아니면 막는다 (캡차를 풀지 않는다).
 
@@ -264,13 +290,18 @@ def publish(
     url_slug: str | None = None,
     thumbnail: str | None = None,
     series_id: str | None = None,
+    short_description: str | None = None,
 ) -> VelogPublishResult:
     """새 글을 쓴다. 기본은 임시저장(초안)이고 `publish_now=True` 여야 발행한다.
 
+    `short_description` 은 글 목록·시리즈에 보이는 소개글이다. 안 주면 velog 가 본문 앞부분으로 만든다.
+
     Raises:
-        VeloggerError: 발행인데 신뢰 계정이 아닐 때 (`FORBIDDEN`), 로그인 안 됨 (`NOT_LOGGED_IN`), velog 가 결과를
-            주지 않았을 때 (`UPSTREAM_ERROR`).
+        VeloggerError: 소개글이 비었거나 150자를 넘을 때 (`INVALID_ARGUMENT`), 발행인데 신뢰 계정이 아닐 때 (`FORBIDDEN`),
+            로그인 안 됨 (`NOT_LOGGED_IN`), velog 가 결과를 주지 않았을 때 (`UPSTREAM_ERROR`).
     """
+    if short_description is not None:
+        _check_short_description(short_description)
     is_temp = not publish_now
     _check_can_publish(require_auth(client), is_temp=is_temp)
     payload = VelogWritePostRequestPayloadModel(
@@ -283,6 +314,7 @@ def publish(
         url_slug=url_slug or slugify(title),
         thumbnail=thumbnail,
         series_id=series_id,
+        meta={'short_description': short_description} if short_description is not None else {},
     )
     data = graphql_data(client.run_request_write_post(payload))
     written = _written(data.write_post if data else None, '글 저장(writePost)')
@@ -300,18 +332,22 @@ def edit_post(
     publish_now: bool = False,
     url_slug: str | None = None,
     thumbnail: str | None = None,
+    short_description: str | None = None,
 ) -> VelogPublishResult:
     """기존 글을 고친다. 바꾸지 않은 필드는 현재 값을 그대로 보내(본문 등이 지워지지 않게) editPost 로 보낸다.
 
     editPost 는 보낸 값으로 글을 덮으므로 시리즈(`series_id`)·`meta`(short_description 등)도 현재 값을 그대로
     보낸다. series_id 를 빼면 null 로 가 글이 시리즈에서 빠진다 (2026-10-20 실측). `publish_now=True` 면 초안을
     발행 상태로 바꾼다 (신뢰 계정만). `thumbnail` 을 주면 글 목록 카드의 썸네일을 그 이미지 URL 로 바꾼다.
+    `short_description` 을 주면 meta 의 소개글만 바꾸고 다른 meta 키(웹이 넣는 `code_theme` 등)는 그대로 둔다.
 
     Raises:
-        VeloggerError: 로그인 안 됨 (`NOT_LOGGED_IN`), 글이 없을 때 (`NOT_FOUND`), 남의 글이거나 발행인데 신뢰 계정이
-            아닐 때 (`FORBIDDEN`), 바꾸지 않을 칸(본문·발행·공개 상태 등)의 현재 값을 모를 때 (`PARSE_ERROR`), velog 가
-            결과를 주지 않았을 때 (`UPSTREAM_ERROR`).
+        VeloggerError: 소개글이 비었거나 150자를 넘을 때 (`INVALID_ARGUMENT`), 로그인 안 됨 (`NOT_LOGGED_IN`), 글이 없을 때
+            (`NOT_FOUND`), 남의 글이거나 발행인데 신뢰 계정이 아닐 때 (`FORBIDDEN`), 바꾸지 않을 칸(본문·발행·공개 상태 등)의
+            현재 값을 모를 때 (`PARSE_ERROR`), velog 가 결과를 주지 않았을 때 (`UPSTREAM_ERROR`).
     """
+    if short_description is not None:
+        _check_short_description(short_description)
     # 로그인부터 확인한다. 세션이 무효하면 ReadPostForEdit 가 익명 조회가 돼 본인 초안이 null 로 오고, 그대로 두면
     # NOT_LOGGED_IN 대신 NOT_FOUND('본인 글의 ID 인지 확인') 가 나 에이전트가 엉뚱한 ID 를 찾는다 (2026-10-20 재현).
     user = require_auth(client)
@@ -338,6 +374,10 @@ def edit_post(
     # 태그·요약(meta.short_description)이 지워지거나 제목에서 만든 다른 slug 로 주소가 바뀐다. 모두 되돌릴 수 없다. 썸네일·시리즈만
     # null 이 '없음' 이라 그대로 보낸다. velog-server 스키마(`entity/Post.ts`)로는 모두 NOT NULL 이고 실측으로도 늘 왔다
     # (2026-10-21 내 글·초안, 2026-10-23 2018년 글부터 어제 글까지). 그래도 발행·공개 상태와 같은 이유로 막는다.
+    # 소개글을 줘도 meta 를 모르면 그대로 null 로 둬 막는다. 소개글만 담아 보내면 다른 meta 키가 지워진다.
+    meta = current.meta
+    if short_description is not None and meta is not None:
+        meta = {**meta, 'short_description': short_description}
     fields: dict[str, Any] = {
         'title': title if title is not None else current.title,
         'body': body if body is not None else current.body,
@@ -346,7 +386,7 @@ def edit_post(
         'is_markdown': current.is_markdown,
         'is_temp': False if publish_now else current.is_temp,
         'is_private': is_private if is_private is not None else current.is_private,
-        'meta': current.meta,
+        'meta': meta,
     }
     unknown = [name for name, value in fields.items() if value is None]
     if unknown:
