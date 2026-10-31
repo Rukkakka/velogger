@@ -4,6 +4,7 @@ velog(velog.io)를 조회하고, 로그인한 사용자의 글·반응을 다루
 LLM 에이전트가 셸로 호출하는 도구라, 출력 형식과 에러 형식이 곧 API 다.
 CLI 코드는 모두 `src/velogger/` 아래에 있다.
 사용자 문서(CLI 사용법)는 `docs/` 바로 아래, 개발 문서(구현 규약·velog API 개발 가이드)는 `docs/development/`에 있다.
+처음 기여하는 사람용 안내는 `CONTRIBUTING.md` 다.
 
 velogger 는 소스가 velog 하나뿐이라, jibsa·baenggipyo 의 `providers/<source>/` 한 겹을 두지 않는다. 대신 그
 provider 층을 그대로 펴서 API 층(`src/velogger/api`)과 service 층(`src/velogger/service`)을 `src/velogger/` 바로 아래에
