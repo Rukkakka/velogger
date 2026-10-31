@@ -5,6 +5,8 @@ velogger 의 버전별 변경 기록. 사용자(에이전트 포함)에게 보�
 
 ## Unreleased
 
+## 0.4.1 — 2026-10-31
+
 ### 수정
 
 - PyPI 페이지 README 의 개발 문서 링크가 열리지 않던 문제. 개발 문서를 옮긴 새 경로(`docs/development/`)를 가리키고, 기여 안내는 새 `CONTRIBUTING.md` 에 둔다 (#45)
