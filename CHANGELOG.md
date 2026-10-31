@@ -5,6 +5,12 @@ velogger 의 버전별 변경 기록. 사용자(에이전트 포함)에게 보�
 
 ## Unreleased
 
+### 수정
+
+- PyPI 페이지 README 의 개발 문서 링크가 열리지 않던 문제. 개발 문서를 옮긴 새 경로(`docs/development/`)를 가리키고, 기여 안내는 새 `CONTRIBUTING.md` 에 둔다 (#45)
+- `velogger guide` 첫 요약이 로그인이 필요한 조회(`feed`·`liked`·`drafts`·`stats`)를 작성·반응으로 묶던 것. '내 목록' 으로 나눴다 (#46)
+- `velogger guide common`·`velogger guide velogger` 로 출력한 문서의 다른 문서 링크가 설치본에서 열리지 않던 문제. GitHub 전체 주소로 쓴다 (#47)
+
 ## 0.4.0 — 2026-10-31
 
 ### 추가
