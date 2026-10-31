@@ -1,6 +1,6 @@
-# velogger 개발 가이드
+# velog API 개발 가이드
 
-[CLI 사용법](../../docs/velogger.md) · [개발 환경·검증](../development.md) · [공통 아키텍처](../architecture.md) · [provider 작성 규약](../provider-conventions.md) · [출력 계약](../output-contract.md) · [코드 형식](../code-style.md)
+[CLI 사용법](../velogger.md) · [개발 환경·검증](README.md) · [공통 아키텍처](architecture.md) · [provider 작성 규약](provider-conventions.md) · [출력 계약](output-contract.md) · [코드 형식](code-style.md)
 
 공통 규약에 없는, velog 에만 있는 구현과 예외를 적는다. 엔드포인트·해시는 velog 웹 번들에서 꺼냈고,
 사이트가 바뀌면 조용히 깨질 수 있으니 바꾸기 전에 실제 응답으로 확인한다.
@@ -97,7 +97,7 @@ service 는 v3 GraphQL·캐시 응답을 공통 요약 모델(`VelogPostSummary`
 - **trendingPosts / recentPosts / searchPosts / posts(username)** 는 v3 GraphQL (`recent`·`search`·`posts`).
   `searchPosts` 는 `{count, posts}`. 트렌딩은 아래 캐시를 쓴다. 목록 필드는 `id, title, short_description,
   thumbnail, user{username, profile}, url_slug, released_at, tags, likes, comments_count, is_private` 정도이고
-  소스마다 일부가 빠진다 (실측: `searchPosts` 는 `updated_at`·`likes` 를 안 준다).
+  API 마다 일부가 빠진다 (실측: `searchPosts` 는 `updated_at`·`likes` 를 안 준다).
 - **글 본문**은 v3 `readPost(username, url_slug)` → `body`(마크다운, 실측 수만 자), `series`, `linked_posts`
   (이전/다음). 글이 없으면 `post` 가 null → `NOT_FOUND`. (실측: `series.series_posts` 가 null 로 오기도 한다.)
   ⚠️ **로그인한 본인이 시리즈에 든 자기 글을 읽으면 v3 가 HTTP 500 을 준다** (2026-10-21 실측: 본인 계정의

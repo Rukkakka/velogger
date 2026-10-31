@@ -167,7 +167,7 @@ def require_auth(client: VelogClient) -> VelogAuthUserModel:
 
     v2 `auth` 를 치므로 access_token 이 만료됐으면 v2 가 refresh_token 으로 새 토큰을 Set-Cookie 해 같은 클라이언트
     자에 담긴다. v2 프록시 mutation(likePost 등)·v3 처럼 요청 안에서 토큰을 갱신하지 않거나, 로그인 안 됨을
-    에러로 알리지 않는 요청 앞에 부른다 (references/providers/velogger.md '토큰 갱신과 require_auth').
+    에러로 알리지 않는 요청 앞에 부른다 (docs/development/velog-api.md '토큰 갱신과 require_auth').
 
     Raises:
         VeloggerError: 로그인하지 않았을 때 (`NOT_LOGGED_IN`).

@@ -47,7 +47,7 @@ def is_request_validation_error(exc: ValidationError) -> bool:
 
     응답 값(다음 페이지 커서 등)으로 요청 모델을 만들다 난 오류도 여기서는 입력 오류로 보인다. 그 값이 실제로 형식에서
     벗어날 수 있는 곳만 그 자리에서 다른 에러로 바꾼다 (jibsa 에서 옮긴 규칙).
-    새 엔드포인트의 규칙은 references/provider-conventions.md '요청·응답 모델' 에 있다.
+    새 엔드포인트의 규칙은 docs/development/provider-conventions.md '요청·응답 모델' 에 있다.
     """
     stack: list[type[BaseModel]] = [RequestModel]
     while stack:

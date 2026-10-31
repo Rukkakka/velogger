@@ -1,6 +1,6 @@
 # 공통 CLI 사용 규칙
 
-[설치](../README.md) · [LLM 가이드](llm.md) · [velogger 사용법](velogger.md)
+[설치](https://github.com/Rukkakka/velogger/blob/main/README.md) · [LLM 가이드](https://github.com/Rukkakka/velogger/blob/main/docs/llm.md) · [velogger 사용법](https://github.com/Rukkakka/velogger/blob/main/docs/velogger.md)
 
 ## 출력 규칙
 
@@ -24,7 +24,7 @@
 
 ## 로그인과 세션
 
-velog 는 비밀번호가 없다. 세션 쿠키가 인증 수단이고, 로그인은 사용자가 직접 한다 (자세한 흐름은 [velogger 사용법](velogger.md#login)). 세션은 `~/.config/velogger/session.json` (`VELOGGER_CONFIG_DIR` 로 변경)에 사용자 전용 권한(0600)으로 저장된다. 쿠키 값은 출력에 나오지 않는다.
+velog 는 비밀번호가 없다. 세션 쿠키가 인증 수단이고, 로그인은 사용자가 직접 한다 (자세한 흐름은 [velogger 사용법](https://github.com/Rukkakka/velogger/blob/main/docs/velogger.md#login)). 세션은 `~/.config/velogger/session.json` (`VELOGGER_CONFIG_DIR` 로 변경)에 사용자 전용 권한(0600)으로 저장된다. 쿠키 값은 출력에 나오지 않는다.
 
 ## 요청 제한과 `limits`
 

@@ -29,7 +29,7 @@ from velogger.service.common import graphql_data
     ],
 )
 def test_graphql_errors_map_to_codes_that_say_whether_retrying_helps(error, code):
-    """HTTP 200 안의 errors 를 에이전트가 다음 행동을 고를 수 있는 코드로 바꾼다 (출력 계약, references/output-contract.md).
+    """HTTP 200 안의 errors 를 에이전트가 다음 행동을 고를 수 있는 코드로 바꾼다 (출력 계약, docs/development/output-contract.md).
 
     UPSTREAM_ERROR 의 '잠시 뒤 다시 시도' 로 두면 없는 id·남의 글·겹친 slug·잘못된 값으로 같은 요청을 되풀이한다.
     """

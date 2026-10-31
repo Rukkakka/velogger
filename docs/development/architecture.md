@@ -3,7 +3,7 @@
 velogger 의 계층 구조와, 명령 하나가 실행될 때 요청이 흐르는 경로. 형식 규칙은
 [code-style.md](code-style.md), provider 모듈 작성 규칙은
 [provider-conventions.md](provider-conventions.md), 출력 형식은
-[output-contract.md](output-contract.md), velog 고유 구현은 [velogger 개발 가이드](providers/velogger.md)를 본다.
+[output-contract.md](output-contract.md), velog 고유 구현은 [velog API 개발 가이드](velog-api.md)를 본다.
 
 ## 계층
 
@@ -45,7 +45,7 @@ cli/                 Typer 명령. 인자 검증 → service 호출 → emit / h
 velog 는 서버가 둘이다. 로그인·글쓰기 같은 인증 동작과 `is_trusted` 가 붙는 `auth` 조회는 구(舊)
 **v2 서버**(`v2.velog.io`, REST + GraphQL)가, 공개 조회는 주로 **v3 서버**(`v3.velog.io`, GraphQL)가 맡는다.
 일부 조회는 CDN 캐시(`cache.velcdn.com`)에 REST 로 있다. 어느 엔드포인트가 어느 서버인지는
-[velogger 개발 가이드](providers/velogger.md)에 적는다.
+[velog API 개발 가이드](velog-api.md)에 적는다.
 
 - GraphQL 응답은 HTTP 200 이어도 본문에 `errors` 가 올 수 있다 (인증 실패·잘못된 입력). client 는 응답 모델에
   `data` 와 `errors` 를 함께 담고, service 가 판정한다 (`UNAUTHENTICATED` → `NOT_LOGGED_IN`).
@@ -78,4 +78,4 @@ LLM 이 명령을 연달아 실행해도 간격이 지켜진다.
 - 연결: `BaseHTTPClient.rate_limit_hooks()` 를 httpx `event_hooks` 로 넘긴다.
 
 기본 정책 값은 `VelogClient.default_rate_limit` 에 있다. 사용자에게 보여 주는 정책 표는
-[공통 사용 규칙](../docs/common.md#요청-제한과-limits)에 있으니, 정책을 바꾸면 그 표도 함께 고친다.
+[공통 사용 규칙](../common.md#요청-제한과-limits)에 있으니, 정책을 바꾸면 그 표도 함께 고친다.
