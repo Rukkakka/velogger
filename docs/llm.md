@@ -38,7 +38,7 @@ velog 는 **비밀번호가 없다.** 이메일 매직 링크나 소셜 로그�
 | 태그별 글 | `velogger tag <태그>` |
 | 팔로워·팔로잉 | `velogger followers <username>` · `velogger followings <username>` |
 | 글 쓰기 (로그인) | `velogger publish "<제목>" --file <본문파일>` (기본 임시저장, `--publish` 로 발행) |
-| 글 고치기 (로그인) | `velogger edit <id> [--title ...] [--thumbnail <URL>] [--publish]` |
+| 글 고치기 (로그인) | `velogger edit <id> [--title ...] [--thumbnail <URL>] [--description "<소개글>"] [--publish]` |
 | 내 초안 목록 (로그인) | `velogger drafts` |
 | 좋아요 / 취소 (로그인) | `velogger like <id>` / `velogger unlike <id>` |
 | 댓글 쓰기·수정·삭제 (로그인) | `velogger comment <id> "<내용>"` · `comment-edit <댓글id> "<내용>"` · `comment-remove <댓글id> --yes` |
@@ -59,6 +59,7 @@ velog 는 **비밀번호가 없다.** 이메일 매직 링크나 소셜 로그�
 - **`publish` 는 기본이 임시저장(초안)이다.** `--publish` 를 줘야 실제로 발행된다. 본문은 `--file <경로>`·`--body "..."` 중 하나로 준다. 파이프로 넘기려면 `--file -` 를 꼭 붙인다 (없으면 stdin 을 읽지 않는다). 태그는 `--tag a,b` 또는 `--tag a --tag b`.
 - 발행(`--publish`)은 **신뢰 계정(`whoami` 의 `is_trusted: true`)만** 된다. 아니면 `FORBIDDEN` 으로 막히니, 그 글은 velog.io 웹에서 발행하라고 사용자에게 안내한다 (CLI 는 캡차를 풀지 않는다). 임시저장은 누구나 된다.
 - `edit`·`like`·`comment`·`comments`·`stats` 는 글 **id**(목록·`post` 결과의 `id`)로 가리킨다. `edit` 은 안 준 필드는 그대로 둔다 (본문을 안 주면 본문 유지).
+- 목록의 `short_description` 은 소개글이 없으면 velog 가 본문 앞부분을 잘라 채운 값이다. 소개글은 `publish`·`edit` 의 `--description`(150자까지)으로 쓴다.
 - 쓰기 결과가 `UPSTREAM_ERROR` 면 **같은 쓰기를 바로 다시 보내지 않는다.** velog 가 반영 여부를 알려 주지 않은 것이라, `drafts`·`posts`·`comments` 로 반영됐는지 먼저 확인한다 (글·댓글이 두 번 생기지 않게).
 - **글 삭제 명령은 없다.** 댓글 삭제(`comment-remove`)는 되돌릴 수 없어 `--yes` 가 있어야 하고, 에이전트는 사용자 확인 없이 붙이지 않는다.
 - 본문에 이미지를 넣는 순서: ① `publish` 로 글을 초안으로 먼저 만든다 → ② 그 id 로 `velogger upload <파일> --post <id>` → ③ 결과의 `markdown` 을 본문에 넣어 `edit` (목록 카드의 썸네일로도 쓰려면 결과의 `url` 을 `edit --thumbnail` 로). velog 는 어느 글에 들어갈 이미지인지 모르면 업로드를 403 으로 막는다. 로컬 경로를 본문에 그대로 쓰면 이미지가 안 보인다. 올린 파일은 누구나 볼 수 있는 주소가 되므로 `upload` 는 이미지(PNG·JPEG·GIF·WebP·AVIF·SVG)만 받는다.

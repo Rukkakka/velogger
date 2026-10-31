@@ -171,6 +171,14 @@ access_token 을 뺀 세션 사본으로 `whoami` 를 부르는 도중 logout �
   테스트 글의 제목만 고쳤는데 시리즈에서 빠졌다). 그래서 `ReadPostForEdit` 가 `series { id }`·`meta` 까지 읽고 그대로
   돌려보낸다. 편집 전에 `require_auth` 부터 부른다 — 세션이 무효하면 `ReadPostForEdit` 가 익명 조회가 돼 본인 초안이
   null 로 오고, 그러면 `NOT_LOGGED_IN` 대신 `NOT_FOUND` 가 나간다.
+- **소개글은 `meta.short_description`** 이다 (`--description`). 웹은 '포스트 미리보기' 칸의 값을 `meta: { short_description }`
+  로 보내고, 150자에서 자르며 Enter 를 막는다 (velog-client `PublishActionButtonsContainer`·`modules/write.ts`·`PublishPreview`,
+  소스 기준). 읽을 때 `Post.short_description` 리졸버는 `meta.short_description` 이 비었으면 본문에서 코드 블록을 빼고 마크다운을
+  지운 앞 200자(+`...`)를 준다 (velog-server `graphql/post.ts`, 소스 기준). 그래서 목록의 `short_description` 만으로는 사용자가
+  쓴 소개글인지 알 수 없다 (2026-10-31 확인: 시리즈 'AI가 믿고 쓰는 CLI 만들기' 의 글들이 본문 첫 이미지 alt 로 시작했다).
+  `edit --description` 은 읽은 `meta` 에 소개글 키만 바꿔 보낸다 — 웹으로 쓴 글의 meta 에는 `code_theme` 도 있어, 소개글만
+  담아 보내면 그 값이 지워진다. 150자를 넘거나 빈 소개글은 보내지 않는다(`INVALID_ARGUMENT`). 서버는 길이를 보지 않지만 웹에서
+  다시 고치면 잘리고, 빈 소개글은 셸 변수가 비어 넘어온 실수로 써 둔 소개글을 지울 수 있어서다.
 - **`ReadPostForEdit`(`post(id)`)는 남의 공개 글도 준다** (2026-10-21 실측. velog-server 리졸버는 초안·비공개만 본인으로
   거른다). 그대로 `editPost` 를 보내면 v2 가 거절을 삼켜 null → '반영됐는지 확인하라' 는 `UPSTREAM_ERROR` 가 나가므로, `user { id }`
   를 같이 읽어 `require_auth` 의 id 와 다르면 보내지 않고 `FORBIDDEN` 이다. 글쓴이를 velog 가 안 주면 막지 않는다 (velog 가

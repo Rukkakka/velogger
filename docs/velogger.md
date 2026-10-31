@@ -188,6 +188,7 @@ velogger tag react --limit 20 --cursor <이전 결과의 next_cursor>
 | `--series-id` | 넣을 시리즈 ID (`user` 결과의 series) | 없음 |
 | `--slug` | url_slug | 제목에서 생성 |
 | `--thumbnail` | 썸네일 이미지 URL | 없음 |
+| `--description` | 글 목록·시리즈에 보이는 소개글 (150자까지, [아래](#소개글)) | velog 가 본문 앞부분으로 만듦 |
 | `--private` | 비공개로 저장 | 공개 |
 | `--publish` | **실제로 발행** (없으면 임시저장/초안) | 임시저장 |
 | `--markdown / --no-markdown` | 본문이 마크다운인지 | 마크다운 |
@@ -214,11 +215,26 @@ PowerShell 5·옛 메모장이 붙인다)은 떼고 읽는다.
 
 `velogger edit <id> [옵션]`. `id` 는 `posts`·`drafts` 결과의 `id`. **안 준 필드는 현재 값을 그대로 둔다** (본문을
 안 주면 본문이 유지되고, 속한 시리즈·요약(short_description)도 그대로다). `--title`·`--body`/`--file`·`--tag`·`--slug`·`--private`/`--public`·`--thumbnail`(글 목록 카드의
-썸네일 이미지 URL. `upload` 결과의 `url`)·`--publish`(초안을 발행 상태로, 신뢰 계정만)를 받는다. 신뢰 계정이 아니면 **이미 발행된 글은 `--publish` 없이도 고칠 수 없다** (velog 웹도
+썸네일 이미지 URL. `upload` 결과의 `url`)·`--description`(소개글, [아래](#소개글))·`--publish`(초안을 발행 상태로, 신뢰 계정만)를 받는다. 신뢰 계정이 아니면 **이미 발행된 글은 `--publish` 없이도 고칠 수 없다** (velog 웹도
 발행된 글을 고칠 때 캡차를 띄운다). 그때는 `FORBIDDEN` 이니 velog.io 웹에서 고친다. 남의 글 id 를 주면 고치지 않고
 `FORBIDDEN`('본인 글이 아니라') 이다. 바꾸지 않을 칸(발행·공개 상태, 본문·제목·태그·slug·요약 등)의 현재 값을 velog 가 주지
 않으면 추측해 덮어쓰지 않고 `PARSE_ERROR` 로 멈춘다 (모르는 채 보내면 발행된 글이 초안이 되거나 비공개 글이 공개되고, 본문·태그가
 지워질 수 있다). 에러 메시지에 빠진 칸 이름이 나온다. 제목·본문·태그·slug 는 옵션으로 직접 주면 그 값을 쓴다.
+
+#### 소개글
+
+`--description "<소개글>"` 은 velog 웹의 '포스트 미리보기' 에 쓰는 소개글이다. 글 목록·시리즈에서 제목 아래에 보이고, 목록
+결과의 `short_description` 으로 나온다. 소개글을 쓰지 않은 글은 velog 가 본문 앞부분(이미지 설명·제목줄 포함)을 잘라 대신
+보여 주므로, 목록의 `short_description` 이 있어도 사용자가 쓴 소개글이라는 뜻은 아니다.
+
+- 150자까지다 (velog 웹도 150자에서 자른다). 넘으면 자르지 않고 `INVALID_ARGUMENT` 다.
+- 빈 값이나 공백만 있는 값은 받지 않는다 (`INVALID_ARGUMENT`). 셸 변수가 비어 넘어와도 써 둔 소개글이 지워지지 않게 하려는
+  것이다. 소개글을 비우려면 velog.io 웹에서 고친다.
+- `edit --description` 은 소개글만 바꾸고 본문·시리즈 등 다른 칸은 그대로 둔다.
+
+```bash
+velogger edit <id> --description "AI 에이전트가 쓰는 CLI 의 출력을 어떻게 설계했는지 정리했다"
+```
 
 ### `drafts` — 내 초안
 

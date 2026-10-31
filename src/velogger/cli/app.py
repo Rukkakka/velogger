@@ -478,6 +478,9 @@ def publish_command(
     series_id: Annotated[str | None, typer.Option('--series-id', help='넣을 시리즈 ID (velogger user 결과의 series)')] = None,
     slug: Annotated[str | None, typer.Option('--slug', help='url_slug (기본은 제목에서 생성)')] = None,
     thumbnail: Annotated[str | None, typer.Option('--thumbnail', help='썸네일 이미지 URL')] = None,
+    description: Annotated[
+        str | None, typer.Option('--description', help='글 목록·시리즈에 보이는 소개글 (150자까지, 없으면 velog 가 본문 앞부분으로 만든다)')
+    ] = None,
     private: Annotated[bool, typer.Option('--private', help='비공개로 저장')] = False,
     publish_flag: Annotated[bool, typer.Option('--publish', help='실제로 발행 (기본은 임시저장/초안)')] = False,
     markdown: Annotated[bool, typer.Option('--markdown/--no-markdown', help='본문이 마크다운인지')] = True,
@@ -496,6 +499,7 @@ def publish_command(
             result = publish(
                 client, title=title, body=text, tags=_split_tags(tag), publish_now=publish_flag,
                 is_private=private, is_markdown=markdown, url_slug=slug, thumbnail=thumbnail, series_id=series_id,
+                short_description=description,
             )
             emit(result, pretty)
 
@@ -511,6 +515,7 @@ def edit_command(
     private: Annotated[bool | None, typer.Option('--private/--public', help='비공개/공개로 바꾸기')] = None,
     publish_flag: Annotated[bool, typer.Option('--publish', help='초안을 발행 상태로 바꾸기 (신뢰 계정만)')] = False,
     thumbnail: Annotated[str | None, typer.Option('--thumbnail', help='썸네일 이미지 URL (velogger upload 결과의 url)')] = None,
+    description: Annotated[str | None, typer.Option('--description', help='새 소개글 (글 목록·시리즈에 보인다, 150자까지)')] = None,
     pretty: PrettyOption = None,
 ) -> None:
     """내 글을 고친다. 바꾸지 않은 필드는 현재 값을 그대로 둔다 (본문을 안 주면 본문은 유지된다).
@@ -523,7 +528,7 @@ def edit_command(
             result = edit_post(
                 client, post_id, title=title, body=new_body,
                 tags=_split_tags(tag) if tag else None, is_private=private, publish_now=publish_flag, url_slug=slug,
-                thumbnail=thumbnail,
+                thumbnail=thumbnail, short_description=description,
             )
             emit(result, pretty)
 
